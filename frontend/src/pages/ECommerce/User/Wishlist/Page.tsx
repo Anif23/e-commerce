@@ -1,7 +1,7 @@
 import { useWishlist } from "../../../../hooks/user/useWishlist";
 import { useAuthStore } from "../../../../store/authStore";
 import ProductCard from "../../../../components/Ecommerce/User/ProductCard";
-import { useWishlistStore } from "../../../../store/guestWishlistStore";
+import { useWishlistStore } from "../../../../store/wishlistStore";
 
 const WishlistPage = () => {
   const token = useAuthStore((s) => s.token);
@@ -45,9 +45,7 @@ const WishlistPage = () => {
       </div>
 
       <div className="max-w-7xl mx-auto grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {items.map((item: any) => {
-          const product = isGuest ? item : item.product;
-
+        {items.map((product: any) => {
           return (
             <ProductCard
               key={product.id}

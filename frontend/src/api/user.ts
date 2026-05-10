@@ -26,4 +26,12 @@ export const userAPI = {
   profile: () => api.get("/profile"),
   updateProfile: (data: any) => api.put("/profile/update", data),
   changePassword: (data: any) => api.put("/profile/password", data),
+
+  logout: () => api.post("/auth/logout"),
+
+  notifications: () => api.get("/notifications"),
+  markNotificationRead: (id: number) => api.put(`/notifications/${id}/read`),
+  markAllNotificationRead: () => api.put("/notifications/read-all"),
+  deleteNotification: (id: number) => api.delete(`/notifications/${id}`),
+  deleteAllNotifications: () => api.delete("/notifications/delete-all"),
 };

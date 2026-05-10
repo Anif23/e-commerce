@@ -7,9 +7,11 @@ export const qk = {
   orders: ["orders"],
   wishlist: ["wishlist"],
   useProfile: ["user-profile"],
+  notifications: ["user-notifications"],
 
   adminDashboard: ["admin-dasboard"],
   adminProducts: ["admin-products"],
   adminCategories: ["admin-categories"],
-  adminOrders: ["admin-orders"]
+  adminOrders: ["admin-orders"],
+  adminCustomers: ["admin-customers"],
 };

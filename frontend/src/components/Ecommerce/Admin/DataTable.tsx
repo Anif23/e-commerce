@@ -1,108 +1,193 @@
-type ActionConfig = {
-  label: string;
-  icon?: React.ReactNode;
-  onClick: (row: any) => void;
-  className?: string;
-};
-
 type Column = {
   header: string;
   accessor?: string;
-  render?: (row: any) => React.ReactNode;
+  render?: (
+    row: any
+  ) => React.ReactNode;
 };
 
 type Props = {
   columns: Column[];
   rows: any[];
+  loading?: boolean;
 
   actions?: {
+    onView?: (row: any) => void;
     onEdit?: (row: any) => void;
     onDelete?: (row: any) => void;
-    onView?: (row: any) => void;
   };
 };
 
-const DataTable = ({ columns, rows, actions }: Props) => {
+const DataTable = ({
+  columns,
+  rows,
+  loading,
+  actions,
+}: Props) => {
+  const hasActions =
+    actions?.onView ||
+    actions?.onEdit ||
+    actions?.onDelete;
+
+  const totalCols =
+    columns.length +
+    (hasActions ? 1 : 0);
+
   return (
-    <div className="bg-white rounded-3xl shadow-sm border overflow-hidden">
+    <div className="bg-white rounded-3xl border shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
-
         <table className="w-full text-sm">
-
           {/* HEADER */}
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 text-gray-500">
             <tr>
-              {columns.map((col) => (
-                <th key={col.header} className="p-4 text-left">
-                  {col.header}
-                </th>
-              ))}
+              {columns.map(
+                (col) => (
+                  <th
+                    key={
+                      col.header
+                    }
+                    className="p-4 text-left font-medium"
+                  >
+                    {
+                      col.header
+                    }
+                  </th>
+                )
+              )}
 
-              {(actions?.onEdit || actions?.onDelete || actions?.onView) && (
-                <th className="p-4 text-left">Actions</th>
+              {hasActions && (
+                <th className="p-4 text-left font-medium">
+                  Actions
+                </th>
               )}
             </tr>
           </thead>
 
-          {/* BODY */}
           <tbody>
-            {rows.map((row) => (
-              <tr
-                key={row.id}
-                className="border-t hover:bg-gray-50 transition"
-              >
-                {columns.map((col) => (
-                  <td key={col.header} className="p-4">
-                    {col.render
-                      ? col.render(row)
-                      : col.accessor
-                      ? row[col.accessor]
-                      : null}
-                  </td>
-                ))}
+            {loading && (
+              <tr>
+                <td
+                  colSpan={
+                    totalCols
+                  }
+                  className="py-16 text-center"
+                >
+                  <div className="w-10 h-10 border-4 border-gray-200 border-t-black rounded-full animate-spin mx-auto" />
 
-                {/* ACTIONS */}
-                {(actions?.onEdit ||
-                  actions?.onDelete ||
-                  actions?.onView) && (
-                  <td className="p-4">
-                    <div className="flex gap-3">
-
-                      {actions?.onView && (
-                        <button
-                          onClick={() => actions.onView?.(row)}
-                          className="text-blue-600 hover:underline"
-                        >
-                          View
-                        </button>
-                      )}
-
-                      {actions?.onEdit && (
-                        <button
-                          onClick={() => actions.onEdit?.(row)}
-                          className="text-green-600 hover:underline"
-                        >
-                          Edit
-                        </button>
-                      )}
-
-                      {actions?.onDelete && (
-                        <button
-                          onClick={() => actions.onDelete?.(row)}
-                          className="text-red-600 hover:underline"
-                        >
-                          Delete
-                        </button>
-                      )}
-
-                    </div>
-                  </td>
-                )}
-
+                  <p className="mt-4 text-gray-500">
+                    Loading
+                    data...
+                  </p>
+                </td>
               </tr>
-            ))}
-          </tbody>
+            )}
 
+            {!loading &&
+              rows.length ===
+              0 && (
+                <tr>
+                  <td
+                    colSpan={
+                      totalCols
+                    }
+                    className="py-16 text-center"
+                  >
+                    <p className="text-lg font-semibold text-gray-700">
+                      No Data
+                      Found
+                    </p>
+
+                    <p className="text-sm text-gray-400 mt-1">
+                      Try
+                      changing
+                      filters or
+                      add new
+                      records
+                    </p>
+                  </td>
+                </tr>
+              )}
+
+            {!loading &&
+              rows.map(
+                (row) => (
+                  <tr
+                    key={
+                      row.id
+                    }
+                    className="border-t hover:bg-gray-50 transition"
+                  >
+                    {columns.map(
+                      (
+                        col
+                      ) => (
+                        <td
+                          key={
+                            col.header
+                          }
+                          className="p-4"
+                        >
+                          {col.render
+                            ? col.render(
+                              row
+                            )
+                            : row[
+                            col
+                              .accessor ||
+                            ""
+                            ]}
+                        </td>
+                      )
+                    )}
+
+                    {hasActions && (
+                      <td className="p-4">
+                        <div className="flex gap-2">
+                          {actions?.onView && (
+                            <button
+                              onClick={() =>
+                                actions.onView?.(
+                                  row
+                                )
+                              }
+                              className="px-3 py-1 rounded-xl bg-blue-50 text-blue-600 text-xs font-medium"
+                            >
+                              View
+                            </button>
+                          )}
+
+                          {actions?.onEdit && (
+                            <button
+                              onClick={() =>
+                                actions.onEdit?.(
+                                  row
+                                )
+                              }
+                              className="px-3 py-1 rounded-xl bg-green-50 text-green-600 text-xs font-medium"
+                            >
+                              Edit
+                            </button>
+                          )}
+
+                          {actions?.onDelete && (
+                            <button
+                              onClick={() =>
+                                actions.onDelete?.(
+                                  row
+                                )
+                              }
+                              className="px-3 py-1 rounded-xl bg-red-50 text-red-600 text-xs font-medium"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                )
+              )}
+          </tbody>
         </table>
       </div>
     </div>

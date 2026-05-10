@@ -26,8 +26,25 @@ import MainPage from "./pages";
 import { Toaster } from "react-hot-toast";
 import OrderDetail from "./pages/ECommerce/User/Orders/OrderDetail";
 import WishlistPage from "./pages/ECommerce/User/Wishlist/Page";
+import OrdersPage from "./pages/ECommerce/Admin/Orders/Page";
+import CustomersPage from "./pages/ECommerce/Admin/Customers/Page";
+import NotificationPage from "./pages/ECommerce/Admin/Notifications/Page";
+import { useEffect } from "react";
 
 function App() {
+
+  useEffect(() => {
+
+    if (
+      Notification.permission !==
+      "granted"
+    ) {
+
+      Notification.requestPermission();
+    }
+
+  }, []);
+
   return (
     <>
       <Toaster />
@@ -68,6 +85,9 @@ function App() {
               <Route path="product/:id" element={<ProductForm />} />
               <Route path="category" element={<CategoryForm />} />
               <Route path="category/:id" element={<CategoryForm />} />
+              <Route path="orders" element={<OrdersPage />} />
+              <Route path="customers" element={<CustomersPage />} />
+              <Route path="notifications" element={<NotificationPage />} />
             </Route>
           </Route>
 

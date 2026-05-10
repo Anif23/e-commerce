@@ -10,14 +10,16 @@ import {
   LogOut,
   Package,
   Home,
+  Bell,
 } from "lucide-react";
 
 import { useAuthStore } from "../../../store/authStore";
-import { useGuestCartStore } from "../../../store/guestCartStore";
-import { useWishlistStore } from "../../../store/guestWishlistStore";
+import { useCartStore } from "../../../store/cartStore";
+import { useWishlistStore } from "../../../store/wishlistStore";
 import { useProfile } from "../../../hooks/user/useProfile";
-import { useCart } from "../../../hooks/user/useCart";
-import { useWishlist } from "../../../hooks/user/useWishlist";
+import NotificationModal from "./NotificationModal";
+import { useNotifications } from "../../../hooks/user/useNotifications";
+import { userAPI } from "../../../api/user";
 
 const UserHeader = () => {
   const { search: urlSearch } =
@@ -25,14 +27,8 @@ const UserHeader = () => {
 
   const navigate = useNavigate();
 
-  const { token, logout } =
+  const { token } =
     useAuthStore();
-
-  const guestCart =
-    useGuestCartStore();
-
-  const guestWishlist =
-    useWishlistStore();
 
   const { data: profile } =
     useProfile();
@@ -49,6 +45,9 @@ const UserHeader = () => {
   const [lastScroll, setLastScroll] =
     useState(0);
 
+  const [showNotifications, setShowNotifications] =
+    useState(false);
+
   const params =
     new URLSearchParams(
       urlSearch
@@ -64,21 +63,26 @@ const UserHeader = () => {
     setSearch(searchFromUrl);
   }, [searchFromUrl]);
 
-  const { data: cart } =
-    useCart();
+  const {
+    data: notifications = [],
+  } = useNotifications();
 
-  const { data: wishlist } =
-    useWishlist();
+  const notificationCount =
+    notifications.filter(
+      (n: any) => !n.isRead
+    ).length;
+
+  const cartStore =
+    useCartStore();
+
+  const wishlistStore =
+    useWishlistStore();
 
   const cartCount =
-    token
-      ? cart?.items?.length || 0
-      : guestCart.items?.length || 0;
+    cartStore.getCount();
 
   const wishlistCount =
-    token
-      ? wishlist?.items?.length || 0
-      : guestWishlist.items?.length || 0;
+    wishlistStore.items.length;
 
   const nav = [
     {
@@ -177,8 +181,29 @@ const UserHeader = () => {
     }
   };
 
+ const handleLogout =
+  async () => {
+    try {
+      await userAPI.logout();
+    } finally {
+      useAuthStore
+        .getState()
+        .logout();
+
+      window.location.href =
+        "/login";
+    }
+  };
+
   return (
     <>
+      <NotificationModal
+        open={showNotifications}
+        onClose={() =>
+          setShowNotifications(false)
+        }
+        notifications={notifications}
+      />
       {/* HEADER */}
       <header
         className={`fixed top-0 left-0 w-full z-50 border-b border-white/20 bg-white/80 backdrop-blur-xl transition-transform duration-300 ${show
@@ -230,7 +255,7 @@ const UserHeader = () => {
 
               {wishlistCount >
                 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] text-[10px] px-1 bg-red-500 text-white rounded-full flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 min-w-4.5 h-4.5 text-[10px] px-1 bg-red-500 text-white rounded-full flex items-center justify-center">
                     {
                       wishlistCount
                     }
@@ -249,13 +274,29 @@ const UserHeader = () => {
 
               {cartCount >
                 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] text-[10px] px-1 bg-black text-white rounded-full flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 min-w-4.5 h-4.5 text-[10px] px-1 bg-black text-white rounded-full flex items-center justify-center">
                     {
                       cartCount
                     }
                   </span>
                 )}
             </Link>
+
+            {/* NOTIFICATIONS */}
+            <button
+              onClick={() =>
+                setShowNotifications(true)
+              }
+              className="relative p-2 rounded-full hover:bg-gray-100"
+            >
+              <Bell size={20} />
+
+              {notificationCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-4.5 h-4.5 text-[10px] px-1 bg-red-500 text-white rounded-full flex items-center justify-center">
+                  {notificationCount}
+                </span>
+              )}
+            </button>
 
             {/* PROFILE */}
             {token ? (
@@ -298,12 +339,7 @@ const UserHeader = () => {
                     </Link>
 
                     <button
-                      onClick={() => {
-                        logout();
-                        navigate(
-                          "/login"
-                        );
-                      }}
+                      onClick={handleLogout}
                       className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-red-500 hover:bg-red-50"
                     >
                       <LogOut size={16} />

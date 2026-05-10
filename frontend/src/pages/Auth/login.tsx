@@ -3,8 +3,8 @@ import { useLogin } from "../../hooks/useAuth";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { getErrorMessage } from "../../utils/getErrorMessage";
 import { useAuthStore } from "../../store/authStore";
-import { useGuestCartStore } from "../../store/guestCartStore";
-import { useWishlistStore } from "../../store/guestWishlistStore";
+import { useCartStore } from "../../store/cartStore";
+import { useWishlistStore } from "../../store/wishlistStore";
 import { useMergeCart, useMergeWishlist } from "../../hooks/user/useMerge";
 
 export default function Login() {
@@ -17,8 +17,11 @@ export default function Login() {
 
   const setAuth = useAuthStore((s) => s.setAuth);
 
-  const guestCart = useGuestCartStore();
-  const guestWishlist = useWishlistStore();
+  const cartStore =
+    useCartStore();
+
+  const wishlistStore =
+    useWishlistStore();
 
   const mergeCart = useMergeCart();
   const mergeWishlist = useMergeWishlist();
@@ -44,25 +47,36 @@ export default function Login() {
         setAuth(data.token);
 
         setIsMerging(true);
-        
+
         try {
-          if (guestCart.items.length > 0) {
+          if (cartStore.items.length > 0) {
             await mergeCart.mutateAsync(
-              guestCart.items.map((item) => ({
-                productId: item.product.id,
-                quantity: item.quantity,
-              }))
+              cartStore.items.map(
+                (item) => ({
+                  productId:
+                    item.product.id,
+                  quantity:
+                    item.quantity,
+                })
+              )
             );
-            guestCart.clear();
+
+            cartStore.clear();
           }
 
-          if (guestWishlist.items.length > 0) {
+          if (
+            wishlistStore.items.length >
+            0
+          ) {
             await mergeWishlist.mutateAsync(
-              guestWishlist.items.map((p) => ({
-                id: p.id,
-              }))
+              wishlistStore.items.map(
+                (p) => ({
+                  productId: p.id,
+                })
+              )
             );
-            guestWishlist.clear();
+
+            wishlistStore.clear();
           }
         } finally {
           setIsMerging(false);

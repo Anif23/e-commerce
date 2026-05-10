@@ -35,7 +35,7 @@ const Sidebar = ({ open, setOpen }: any) => {
     },
     {
       name: "Customers",
-      path: "/admin/ecommerce/users",
+      path: "/admin/ecommerce/customers",
       icon: Users,
     },
     {

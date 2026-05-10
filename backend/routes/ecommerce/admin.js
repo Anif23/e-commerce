@@ -3,8 +3,9 @@ import { authMiddleware } from "../../middleware/auth.js";
 import { upload } from "../../middleware/upload.js";
 import { productController } from "../../controller/ecommerce/product.js";
 import { categoryController } from "../../controller/ecommerce/category.js";
-import { orderController } from "../../controller/ecommerce/order.js";
-import { adminController } from "../../controller/ecommerce/admin.js";
+import { adminController } from "../../controller/ecommerce/Admin/admin.js";
+import { adminOrderController } from "../../controller/ecommerce/Admin/order.js";
+import { adminCustomerController } from "../../controller/ecommerce/Admin/customer.js";
 
 export const adminRoutes = (app) => {
 
@@ -89,17 +90,38 @@ export const adminRoutes = (app) => {
         categoryController.deleteCategory
     );
 
+    app.get(
+        "/admin/orders",
+        authMiddleware,
+        adminMiddleware,
+        adminOrderController.getAllOrders
+    );
+
     app.put(
         "/admin/orders/:id/status",
         authMiddleware,
         adminMiddleware,
-        orderController.updateOrderStatus
+        adminOrderController.updateOrderStatus
     );
 
     app.put(
         "/admin/orders/:id/payment",
         authMiddleware,
         adminMiddleware,
-        orderController.updatePaymentStatus
+        adminOrderController.updateOrderStatus
     );
+
+    app.get(
+        "/admin/customers",
+        authMiddleware,
+        adminMiddleware,
+        adminCustomerController.getAllCustomers
+    )
+
+    app.post(
+        "/admin/notifications",
+        authMiddleware,
+        adminMiddleware,
+        adminCustomerController.sendNotification
+    )
 };

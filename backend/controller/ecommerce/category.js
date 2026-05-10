@@ -97,16 +97,78 @@ export const categoryController = {
   }),
 
   getCategories: asyncHandler(async (req, res) => {
-    const categories = await prisma.category.findMany({
-      where: { parentId: null },
-      include: {
-        children: true
-      }
-    });
+    const {
+      search = "",
+      page = 1,
+      limit = 8,
+    } = req.query;
+
+    const currentPage =
+      Number(page) || 1;
+
+    const perPage =
+      Number(limit) || 8;
+
+    const skip =
+      (currentPage - 1) *
+      perPage;
+
+    const where = {
+      parentId: null,
+
+      ...(search && {
+        name: {
+          contains: search,
+          mode:
+            "insensitive",
+        },
+      })
+    };
+
+    const total =
+      await prisma.category.count(
+        { where }
+      );
+
+    const categories =
+      await prisma.category.findMany(
+        {
+          where,
+          skip,
+          take: perPage,
+          orderBy: {
+            createdAt:
+              "desc",
+          },
+          include: {
+            children: true,
+          },
+        }
+      );
+
+    const totalPages =
+      Math.ceil(
+        total /
+        perPage
+      );
 
     res.json({
       success: true,
-      data: categories
+      data: categories,
+      pagination: {
+        total,
+        page:
+          currentPage,
+        limit:
+          perPage,
+        totalPages,
+        hasNext:
+          currentPage <
+          totalPages,
+        hasPrev:
+          currentPage >
+          1,
+      },
     });
   }),
 

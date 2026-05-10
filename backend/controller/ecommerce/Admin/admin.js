@@ -1,7 +1,7 @@
 
-import { prisma } from "../../config/prisma.js";
-import { asyncHandler } from "../../utils/asyncHandler.js";
-import { ApiError } from "../../utils/apiError.js";
+import { prisma } from "../../../config/prisma.js";
+import { asyncHandler } from "../../../utils/asyncHandler.js";
+import { ApiError } from "../../../utils/apiError.js";
 
 export const adminController = {
     dashboard: asyncHandler(async (req, res) => {

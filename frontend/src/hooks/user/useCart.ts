@@ -4,35 +4,81 @@ import { qk } from "../../utils/queryKeys";
 import toast from "react-hot-toast";
 import { getErrorMessage } from "../../utils/getErrorMessage";
 import { useAuthStore } from "../../store/authStore";
+import { useCartStore } from "../../store/cartStore";
 
 export const useCart = () => {
   const token = useAuthStore((s) => s.token);
 
+  const setItems = useCartStore((s) => s.setItems);
+
   return useQuery({
-    queryKey: qk.cart,
+    queryKey: [qk.cart],
+
     queryFn: async () => {
       const res = await userAPI.cart();
-      return res.data.data;
+
+      const items = res.data.data.items;
+
+      // sync api cart
+      setItems(items);
+
+      return items;
     },
+
     enabled: !!token,
   });
 };
 
-export const useAddToCart = () => {
-  const qc = useQueryClient();
+export const useAddToCart =
+  () => {
+    const qc =
+      useQueryClient();
 
-  return useMutation({
-    mutationFn: (data: any) => userAPI.addToCart(data),
+    const cartStore =
+      useCartStore();
 
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.cart });
-    },
+    return useMutation({
+      mutationFn: ({
+        product,
+        qty,
+      }: any) =>
+        userAPI.addToCart({
+          productId:
+            product.id,
+          quantity: qty,
+        }),
 
-    onError: (err: any) => {
-      toast.error(getErrorMessage(err));
-    },
-  });
-};
+      onMutate: ({
+        product,
+        qty,
+      }) => {
+        // optimistic update once
+        cartStore.add(
+          product,
+          qty
+        );
+      },
+
+      onError: (
+        _,
+        variables
+      ) => {
+        // rollback
+        cartStore.update(
+          variables.product.id,
+          0
+        );
+      },
+
+      onSettled: () => {
+        qc.invalidateQueries({
+          queryKey: [
+            qk.cart,
+          ],
+        });
+      },
+    });
+  };
 
 export const useUpdateCart = () => {
   const qc = useQueryClient();

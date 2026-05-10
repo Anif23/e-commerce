@@ -4,16 +4,21 @@ import { qk } from "../../utils/queryKeys";
 import toast from "react-hot-toast";
 import { getErrorMessage } from "../../utils/getErrorMessage";
 
-export const useAdminCategories = () =>
+export const useAdminCategories = (params?: any) =>
   useQuery({
-    queryKey: qk.adminCategories,
-    queryFn: () => adminAPI.categories().then((r) => r.data.data),
+    queryKey: [...qk.adminCategories, params],
+    queryFn: async () => {
+      const res = await adminAPI.categories(params);
+      return res.data;
+    },
+
+    placeholderData: (previousData) => previousData,
   });
 
 export const useAdminCategoryDetail = (id: number, options?: any) =>
   useQuery({
     queryKey: ["admin-category", id],
-    queryFn: () => adminAPI.category(id).then(r => r.data.data),
+    queryFn: () => adminAPI.category(id).then((r) => r.data.data),
     enabled: !!id,
     ...options,
   });

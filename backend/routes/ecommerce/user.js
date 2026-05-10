@@ -8,6 +8,7 @@ import { mergeCart, mergeWishlist } from "../../controller/ecommerce/mergeApi.js
 import { getWishlist, updateWishlist } from "../../controller/ecommerce/wishlist.js";
 import { optionalAuth } from "../../middleware/optionalAuth.js";
 import { profileController } from "../../controller/ecommerce/profile.js";
+import { notificationController } from "../../controller/ecommerce/notification.js";
 
 export const productRoutes = (app) => {
   app.get("/products", optionalAuth, productController.getProducts);
@@ -50,4 +51,36 @@ export const profileRoutes = (app) => {
   app.get("/profile", authMiddleware, profileController.getProfile);
   app.put("/profile/update", authMiddleware, profileController.updateProfile);
   app.put("/profile/password", authMiddleware, profileController.changePassword);
+}
+
+export const notificationRoutes = (app) => {
+  app.get(
+    "/notifications",
+    authMiddleware,
+    notificationController.getNotifications
+  );
+
+  app.put(
+    "/notifications/read-all",
+    authMiddleware,
+    notificationController.markAllRead
+  );
+
+  app.put(
+    "/notifications/:id/read",
+    authMiddleware,
+    notificationController.markAsRead
+  );
+
+  app.delete(
+    "/notifications/delete-all",
+    authMiddleware,
+    notificationController.deleteAllNotifications
+  );
+
+  app.delete(
+    "/notifications/:id",
+    authMiddleware,
+    notificationController.deleteNotification
+  );
 }

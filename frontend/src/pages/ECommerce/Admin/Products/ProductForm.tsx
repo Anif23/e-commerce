@@ -1,12 +1,19 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import {
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 
 import PageHeader from "../../../../components/Ecommerce/Admin/PageHeader";
 import InputField from "../../../../components/Ecommerce/Forms/InputField";
-import TextAreaField from "../../../../components/Ecommerce/Forms/TextAreaField";
 import SelectField from "../../../../components/Ecommerce/Forms/SelectField";
-import ImageUploader from "../../../../components/Ecommerce/Forms/ImageUploader";
+import TextAreaField from "../../../../components/Ecommerce/Forms/TextAreaField";
 import SectionCard from "../../../../components/Ecommerce/Forms/SectionCard";
+import ImageUploader from "../../../../components/Ecommerce/Forms/ImageUploader";
 
 import {
   useAdminProductDetail,
@@ -17,274 +24,562 @@ import {
 import { useAdminCategories } from "../../../../hooks/admin/useAdminCategories";
 
 const ProductForm = () => {
-  const navigate = useNavigate();
-  const { id } = useParams();
+  const navigate =
+    useNavigate();
+
+  const { id } =
+    useParams();
 
   const isEdit = !!id;
-  const productId = Number(id);
 
-  const { data: product, isLoading } =
-    useAdminProductDetail(productId);
+  const productId =
+    Number(id);
 
-  const { data: categories = [] } = useAdminCategories();
+  const {
+    data: product,
+    isLoading,
+  } =
+    useAdminProductDetail(
+      productId
+    );
 
-  const createProduct = useCreateProduct();
-  const updateProduct = useUpdateProduct();
+  const {
+    data: categories = [],
+  } =
+    useAdminCategories();
 
-  const [form, setForm] = useState<any>({
-    name: "",
-    price: "",
-    stock: "",
-    lowStock: "5",
-    categoryId: "",
-    description: "",
-    sku: "",
-    brand: "",
-    tags: "",
-    isFeatured: false,
-    isActive: true,
-    discountType: "",
-    discountValue: "",
-    discountStart: "",
-    discountEnd: "",
-  });
+  const createProduct =
+    useCreateProduct();
 
-  const [images, setImages] = useState<File[]>([]);
-  const [preview, setPreview] = useState<string[]>([]);
+  const updateProduct =
+    useUpdateProduct();
+
+  const [form, setForm] =
+    useState<any>({
+      name: "",
+      price: "",
+      stock: "",
+      lowStock: "5",
+      categoryId: "",
+      description: "",
+      discountType: "",
+      discountValue: "",
+      discountStart: "",
+      discountEnd: "",
+      isActive: true,
+      isFeatured: false,
+    });
+
+  const [images, setImages] =
+    useState<File[]>([]);
+
+  const [preview, setPreview] =
+    useState<string[]>([]);
+
+  const [
+    existingImages,
+    setExistingImages,
+  ] = useState<any[]>([]);
+
+  const [
+    deleteImages,
+    setDeleteImages,
+  ] = useState<number[]>([]);
+
+  const updateField = (
+    key: string,
+    value: any
+  ) =>
+    setForm((p: any) => ({
+      ...p,
+      [key]: value,
+    }));
 
   useEffect(() => {
-    if (product && isEdit) {
+    if (
+      product &&
+      isEdit
+    ) {
       setForm({
-        name: product.name,
-        price: product.price,
-        stock: product.stock,
-        lowStock: product.lowStock,
-        categoryId: product.categoryId,
-        description: product.description,
-        sku: product.sku,
-        brand: product.brand,
-        tags: product.tags?.join(", "),
-        isFeatured: product.isFeatured,
-        isActive: product.isActive,
-        discountType: product.discountType || "",
-        discountValue: product.discountValue || "",
-        discountStart: product.discountStart || "",
-        discountEnd: product.discountEnd || "",
+        name:
+          product.name || "",
+        price:
+          product.price || "",
+        stock:
+          product.stock || "",
+        lowStock:
+          product.lowStock ||
+          "5",
+        categoryId:
+          product.categoryId ||
+          "",
+        description:
+          product.description ||
+          "",
+        discountType:
+          product.discountType ||
+          "",
+        discountValue:
+          product.discountValue ||
+          "",
+        discountStart:
+          product.discountStart
+            ?.slice(
+              0,
+              10
+            ) || "",
+        discountEnd:
+          product.discountEnd
+            ?.slice(
+              0,
+              10
+            ) || "",
+        isActive:
+          product.isActive,
+        isFeatured:
+          product.isFeatured,
       });
+
+      setExistingImages(
+        product.images ||
+        []
+      );
+
+      setPreview([]);
     }
   }, [product, isEdit]);
 
-  const updateField = (key: string, value: any) => {
-    setForm((p: any) => ({ ...p, [key]: value }));
-  };
-
-  const handleImages = (files: FileList | null) => {
+  const handleImages = (
+    files: FileList | null
+  ) => {
     if (!files) return;
-    const arr = Array.from(files);
 
-    setImages((p) => [...p, ...arr]);
+    const arr =
+      Array.from(files);
+
+    setImages((p) => [
+      ...p,
+      ...arr,
+    ]);
+
     setPreview((p) => [
       ...p,
-      ...arr.map((f) => URL.createObjectURL(f)),
+      ...arr.map((f) =>
+        URL.createObjectURL(
+          f
+        )
+      ),
     ]);
   };
 
-  const removeImage = (index: number) => {
-    setImages((p) => p.filter((_, i) => i !== index));
-    setPreview((p) => p.filter((_, i) => i !== index));
+  const removeExisting =
+    (
+      imgId: number
+    ) => {
+      setDeleteImages(
+        (p) => [
+          ...p,
+          imgId,
+        ]
+      );
+
+      setExistingImages(
+        (p) =>
+          p.filter(
+            (
+              img
+            ) =>
+              img.id !==
+              imgId
+          )
+      );
+    };
+
+  const removeNew =
+    (
+      index: number
+    ) => {
+      setImages((p) =>
+        p.filter(
+          (
+            _,
+            i
+          ) =>
+            i !== index
+        )
+      );
+
+      setPreview((p) =>
+        p.filter(
+          (
+            _,
+            i
+          ) =>
+            i !== index
+        )
+      );
+    };
+
+  const handleSubmit = (
+    e: React.FormEvent
+  ) => {
+    e.preventDefault();
+
+    const fd =
+      new FormData();
+
+    Object.entries(
+      form
+    ).forEach(
+      ([
+        key,
+        value,
+      ]) =>
+        fd.append(
+          key,
+          String(
+            value
+          )
+        )
+    );
+
+    images.forEach(
+      (img) =>
+        fd.append(
+          "images",
+          img
+        )
+    );
+
+    deleteImages.forEach(
+      (id) =>
+        fd.append(
+          "deleteImages",
+          String(
+            id
+          )
+        )
+    );
+
+    const mutation =
+      isEdit
+        ? updateProduct
+        : createProduct;
+
+    mutation.mutate(
+      isEdit
+        ? {
+          id:
+            productId,
+          data: fd,
+        }
+        : fd,
+      {
+        onSuccess:
+          () =>
+            navigate(
+              -1
+            ),
+      }
+    );
   };
 
- const handleSubmit = (e: any) => {
-  e.preventDefault();
-
-  const fd = new FormData();
-
-  // STRING FIELDS
-  fd.append("name", form.name || "");
-  fd.append("description", form.description || "");
-  fd.append("sku", form.sku || "");
-  fd.append("brand", form.brand || "");
-
-  // NUMBERS (convert properly)
-  fd.append("price", form.price ? String(Number(form.price)) : "0");
-  fd.append("stock", form.stock ? String(Number(form.stock)) : "0");
-  fd.append("lowStock", form.lowStock ? String(Number(form.lowStock)) : "5");
-  fd.append("categoryId", form.categoryId ? String(Number(form.categoryId)) : "");
-
-  // BOOLEANS (VERY IMPORTANT FIX)
-  fd.append("isActive", form.isActive ? "true" : "false");
-  fd.append("isFeatured", form.isFeatured ? "true" : "false");
-
-  // TAGS (convert string → array in backend, so keep raw string)
-  fd.append("tags", form.tags || "");
-
-  // DISCOUNT (fix empty values properly)
-  fd.append("discountType", form.discountType || "");
-
-  fd.append(
-    "discountValue",
-    form.discountValue !== "" ? String(Number(form.discountValue)) : ""
-  );
-
-  fd.append(
-    "discountStart",
-    form.discountStart || ""
-  );
-
-  fd.append(
-    "discountEnd",
-    form.discountEnd || ""
-  );
-
-  // IMAGES
-  images.forEach((img) => fd.append("images", img));
-
-  const mutation = isEdit ? updateProduct : createProduct;
-
-  mutation.mutate(
-    isEdit ? { id: productId, data: fd } : fd,
-    { onSuccess: () => navigate(-1) }
-  );
-};
-
-  if (isEdit && isLoading) return <div>Loading...</div>;
+  if (
+    isEdit &&
+    isLoading
+  )
+    return (
+      <div>
+        Loading...
+      </div>
+    );
 
   return (
     <div className="space-y-6">
-
       <PageHeader
-        title={isEdit ? "Edit Product" : "Create Product"}
-        subtitle="Manage products, pricing, stock & images"
+        title={
+          isEdit
+            ? "Edit Product"
+            : "Create Product"
+        }
+        subtitle="Manage product details"
         buttonText="Back"
-        onClick={() => navigate(-1)}
+        onClick={() =>
+          navigate(
+            -1
+          )
+        }
       />
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-
-        {/* BASIC */}
+      <form
+        onSubmit={
+          handleSubmit
+        }
+        className="space-y-6"
+      >
         <SectionCard title="Basic Info">
           <div className="grid md:grid-cols-2 gap-4">
-
             <InputField
-              label="Product Name"
-              value={form.name}
-              onChange={(e) => updateField("name", e.target.value)}
+              label="Name"
+              value={
+                form.name
+              }
+              onChange={(
+                e: React.ChangeEvent<HTMLInputElement>
+              ) =>
+                updateField(
+                  "name",
+                  e.target
+                    .value
+                )
+              }
             />
 
             <InputField
-              label="Brand"
-              value={form.brand}
-              onChange={(e) => updateField("brand", e.target.value)}
+              label="Price"
+              type="number"
+              value={
+                form.price
+              }
+              onChange={(
+                e: React.ChangeEvent<HTMLInputElement>
+              ) =>
+                updateField(
+                  "price",
+                  e.target
+                    .value
+                )
+              }
             />
 
             <InputField
-              label="SKU"
-              value={form.sku}
-              onChange={(e) => updateField("sku", e.target.value)}
+              label="Stock"
+              type="number"
+              value={
+                form.stock
+              }
+              onChange={(
+                e: React.ChangeEvent<HTMLInputElement>
+              ) =>
+                updateField(
+                  "stock",
+                  e.target
+                    .value
+                )
+              }
+            />
+
+            <InputField
+              label="Low Stock"
+              type="number"
+              value={
+                form.lowStock
+              }
+              onChange={(
+                e: React.ChangeEvent<HTMLInputElement>
+              ) =>
+                updateField(
+                  "lowStock",
+                  e.target
+                    .value
+                )
+              }
             />
 
             <SelectField
               label="Category"
-              value={form.categoryId}
-              onChange={(e) => updateField("categoryId", e.target.value)}
-              options={categories.map((c: any) => ({
-                label: c.name,
-                value: c.id,
-              }))}
+              value={
+                form.categoryId
+              }
+              onChange={(
+                e: React.ChangeEvent<HTMLSelectElement>
+              ) =>
+                updateField(
+                  "categoryId",
+                  e.target
+                    .value
+                )
+              }
+              options={categories.map(
+                (
+                  c: any
+                ) => ({
+                  label:
+                    c.name,
+                  value:
+                    c.id,
+                })
+              )}
             />
-
           </div>
 
           <TextAreaField
             label="Description"
-            value={form.description}
-            onChange={(e) => updateField("description", e.target.value)}
+            value={
+              form.description
+            }
+            onChange={(
+              e: React.ChangeEvent<HTMLTextAreaElement>
+            ) =>
+              updateField(
+                "description",
+                e.target
+                  .value
+              )
+            }
           />
         </SectionCard>
 
-        {/* PRICING */}
-        <SectionCard title="Pricing & Inventory">
-          <div className="grid md:grid-cols-4 gap-4">
-
-            <InputField label="Price" type="number" value={form.price} onChange={(e) => updateField("price", e.target.value)} />
-            <InputField label="Stock" type="number" value={form.stock} onChange={(e) => updateField("stock", e.target.value)} />
-            <InputField label="Low Stock" type="number" value={form.lowStock} onChange={(e) => updateField("lowStock", e.target.value)} />
-
-          </div>
-
-          <div className="flex gap-6 mt-4">
-            <label>
-              <input
-                type="checkbox"
-                checked={form.isFeatured}
-                onChange={(e) => updateField("isFeatured", e.target.checked)}
-              /> Featured
-            </label>
-
-            <label>
-              <input
-                type="checkbox"
-                checked={form.isActive}
-                onChange={(e) => updateField("isActive", e.target.checked)}
-              /> Active
-            </label>
-          </div>
-        </SectionCard>
-
-        {/* IMAGES */}
-        <SectionCard title="Images">
-          <ImageUploader
-            onChange={handleImages}
-            images={preview}
-            onRemove={removeImage}
-          />
-        </SectionCard>
-
-        <SectionCard title="Discount (Optional)">
-
+        <SectionCard title="Discount">
           <div className="grid md:grid-cols-2 gap-4">
-
             <SelectField
-              label="Discount Type"
-              value={form.discountType}
-              onChange={(e) => updateField("discountType", e.target.value)}
+              label="Type"
+              value={
+                form.discountType
+              }
+              onChange={(
+                e: React.ChangeEvent<HTMLSelectElement>
+              ) =>
+                updateField(
+                  "discountType",
+                  e.target
+                    .value
+                )
+              }
               options={[
-                { label: "No Discount", value: "" },
-                { label: "Percentage", value: "PERCENTAGE" },
-                { label: "Fixed", value: "FIXED" },
+                {
+                  label:
+                    "No Discount",
+                  value:
+                    "",
+                },
+                {
+                  label:
+                    "Percentage",
+                  value:
+                    "PERCENTAGE",
+                },
+                {
+                  label:
+                    "Fixed",
+                  value:
+                    "FIXED",
+                },
               ]}
             />
 
             <InputField
-              label="Discount Value"
+              label="Value"
               type="number"
-              value={form.discountValue}
-              onChange={(e) => updateField("discountValue", e.target.value)}
+              value={
+                form.discountValue
+              }
+              onChange={(
+                e: React.ChangeEvent<HTMLInputElement>
+              ) =>
+                updateField(
+                  "discountValue",
+                  e.target
+                    .value
+                )
+              }
             />
 
             <InputField
               label="Start Date"
               type="date"
-              value={form.discountStart}
-              onChange={(e) => updateField("discountStart", e.target.value)}
+              value={
+                form.discountStart
+              }
+              onChange={(
+                e: React.ChangeEvent<HTMLInputElement>
+              ) =>
+                updateField(
+                  "discountStart",
+                  e.target
+                    .value
+                )
+              }
             />
 
             <InputField
               label="End Date"
               type="date"
-              value={form.discountEnd}
-              onChange={(e) => updateField("discountEnd", e.target.value)}
+              value={
+                form.discountEnd
+              }
+              onChange={(
+                e: React.ChangeEvent<HTMLInputElement>
+              ) =>
+                updateField(
+                  "discountEnd",
+                  e.target
+                    .value
+                )
+              }
             />
-
           </div>
-
         </SectionCard>
 
-        {/* SUBMIT */}
-        <button className="w-full h-14 bg-black text-white rounded-2xl font-semibold">
-          {isEdit ? "Update Product" : "Create Product"}
-        </button>
+        <SectionCard title="Images">
+          {/* existing */}
+          {existingImages
+            .length >
+            0 && (
+              <div className="flex gap-3 flex-wrap mb-4">
+                {existingImages.map(
+                  (
+                    img
+                  ) => (
+                    <div
+                      key={
+                        img.id
+                      }
+                      className="relative"
+                    >
+                      <img
+                        src={
+                          img.url
+                        }
+                        className="w-24 h-24 rounded-2xl object-cover border"
+                      />
 
+                      <button
+                        type="button"
+                        onClick={() =>
+                          removeExisting(
+                            img.id
+                          )
+                        }
+                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white text-xs"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+
+          {/* new uploader */}
+          <ImageUploader
+            images={
+              preview
+            }
+            onChange={
+              handleImages
+            }
+            onRemove={
+              removeNew
+            }
+          />
+        </SectionCard>
+
+        <button className="w-full h-12 bg-black text-white rounded-2xl">
+          {isEdit
+            ? "Update Product"
+            : "Create Product"}
+        </button>
       </form>
     </div>
   );

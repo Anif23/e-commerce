@@ -18,191 +18,126 @@ import {
 
 export const productController = {
 
-    getProducts: asyncHandler(async (req, res) => {
-        const {
-            search,
-            categoryId,
-            isActive = "true",
-            page = 1,
-            limit = 8,
-            sort = "latest",
-            minPrice,
-            maxPrice,
-        } = req.query;
+    getProducts:
+        asyncHandler(async (req, res) => {
 
-        const userId = req.user?.id;
+            const {
+                search,
+                categoryId,
+                page = 1,
+                limit = 3,
+                isActive,
+            } = req.query;
 
-        const currentPage = Number(page) || 1;
-        const perPage = Number(limit) || 8;
-        const skip = (currentPage - 1) * perPage;
+            const userId =
+                req.user?.id;
 
-        const now = new Date();
+            const currentPage =
+                Number(page);
 
-        const where = {
-            isDeleted: false,
+            const perPage =
+                Number(limit);
 
-            ...(search && {
-                name: {
-                    contains: search,
-                    mode: "insensitive",
-                },
-            }),
+            const where = {
+                isDeleted: false,
+                isActive: true,
 
-            ...(categoryId && {
-                categoryId: Number(categoryId),
-            }),
-
-            ...(typeof isActive !== "undefined" && {
-                isActive: isActive === "true",
-            }),
-
-            ...(minPrice || maxPrice
-                ? {
-                    price: {
-                        ...(minPrice && { gte: Number(minPrice) }),
-                        ...(maxPrice && { lte: Number(maxPrice) }),
+                ...(search && {
+                    name: {
+                        contains: search,
+                        mode: "insensitive",
                     },
-                }
-                : {}),
-        };
+                }),
 
-        let orderBy = { createdAt: "desc" };
+                ...(categoryId && {
+                    categoryId:
+                        Number(categoryId),
+                }),
 
-        if (sort === "oldest") {
-            orderBy = { createdAt: "asc" };
-        }
-
-        if (sort === "low-price") {
-            orderBy = { price: "asc" };
-        }
-
-        if (sort === "high-price") {
-            orderBy = { price: "desc" };
-        }
-
-        if (sort === "name") {
-            orderBy = { name: "asc" };
-        }
-
-        const total = await prisma.product.count({
-            where,
-        });
-
-        const products = await prisma.product.findMany({
-            where,
-            skip,
-            take: perPage,
-            orderBy,
-
-            include: {
-                category: true,
-                images: true,
-
-                reviews: {
-                    select: {
-                        rating: true,
-                    },
-                },
-
-                wishlistItems: userId
-                    ? {
-                        where: {
-                            wishlist: {
-                                userId,
-                            },
-                        },
-                        select: {
-                            id: true,
-                        },
-                    }
-                    : false,
-            },
-        });
-
-        const result = products.map((p) => {
-            const isDiscountActive =
-                p.discountValue &&
-                (!p.discountStart || p.discountStart <= now) &&
-                (!p.discountEnd || p.discountEnd >= now);
-
-            let finalPrice = p.price;
-
-            if (isDiscountActive) {
-                if (p.discountType === "PERCENTAGE") {
-                    finalPrice =
-                        p.price -
-                        (p.price * p.discountValue) / 100;
-                }
-
-                if (p.discountType === "FIXED") {
-                    finalPrice =
-                        p.price - p.discountValue;
-                }
-            }
-
-            if (finalPrice < 0) {
-                finalPrice = 0;
-            }
-
-            const totalRatings = p.reviews.length;
-
-            const avgRating =
-                totalRatings > 0
-                    ? Number(
-                        (
-                            p.reviews.reduce(
-                                (sum, r) => sum + r.rating,
-                                0
-                            ) / totalRatings
-                        ).toFixed(1)
-                    )
-                    : 0;
-
-            return {
-                ...p,
-
-                reviews: undefined,
-
-                wishlistItems: undefined,
-
-                isWishlisted: userId
-                    ? p.wishlistItems.length > 0
-                    : false,
-
-                isOnSale: !!isDiscountActive,
-
-                finalPrice,
-
-                discountPercent:
-                    isDiscountActive &&
-                        p.discountType === "PERCENTAGE"
-                        ? p.discountValue
-                        : null,
-
-                avgRating,
-                reviewCount: totalRatings,
+                ...(typeof isActive !==
+                    "undefined" && {
+                    isActive:
+                        toBoolean(isActive),
+                }),
             };
-        });
 
-        const totalPages = Math.ceil(
-            total / perPage
-        );
+            const total =
+                await prisma.product.count({
+                    where,
+                });
 
-        res.json({
-            success: true,
+            const products =
+                await prisma.product.findMany({
+                    where,
 
-            data: result,
+                    skip:
+                        (currentPage - 1) *
+                        perPage,
 
-            pagination: {
-                total,
-                page: currentPage,
-                limit: perPage,
-                totalPages,
-                hasNext: currentPage < totalPages,
-                hasPrev: currentPage > 1,
-            },
-        });
-    }),
+                    take: perPage,
+
+                    orderBy: {
+                        createdAt: "desc",
+                    },
+
+                    include: {
+                        category: true,
+                        images: true,
+
+                        wishlistItems:
+                            userId
+                                ? {
+                                    where: {
+                                        wishlist: {
+                                            userId,
+                                        },
+                                    },
+
+                                    select: {
+                                        id: true,
+                                    },
+                                }
+                                : false,
+                    },
+                });
+
+            const data =
+                products.map((p) => ({
+                    ...p,
+
+                    isWishlisted:
+                        p.wishlistItems
+                            ?.length > 0,
+
+                    wishlistItems:
+                        undefined,
+                }));
+
+            const totalPages =
+                Math.ceil(
+                    total / perPage
+                );
+
+            res.json({
+                success: true,
+
+                data,
+
+                pagination: {
+                    total,
+                    page: currentPage,
+                    limit: perPage,
+                    totalPages,
+
+                    hasNext:
+                        currentPage <
+                        totalPages,
+
+                    hasPrev:
+                        currentPage > 1,
+                },
+            });
+        }),
 
     createProduct: asyncHandler(async (req, res) => {
         const body = createProductSchema.parse(req.body);

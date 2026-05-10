@@ -7,6 +7,7 @@ type Props = {
 };
 
 const ImageUploader = ({ onChange, images, onRemove }: Props) => {
+
   return (
     <div className="space-y-4">
       <label className="border-2 border-dashed rounded-3xl p-8 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition">
