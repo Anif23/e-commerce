@@ -2,6 +2,7 @@ import { useParams } from "react-router-dom";
 import { useProduct } from "../../../../hooks/user/useProducts";
 import { useAddToCart } from "../../../../hooks/user/useCart";
 import { useToggleWishlist } from "../../../../hooks/user/useWishlist";
+import { useWishlistStore } from "../../../../store/wishlistStore";
 import { useState, useMemo } from "react";
 import ProductGallery from "../../../../components/Ecommerce/User/ProductGallery";
 
@@ -12,6 +13,7 @@ const ProductDetail = () => {
 
   const addToCart = useAddToCart();
   const toggleWishlist = useToggleWishlist();
+  const isWishlisted = useWishlistStore((s) => s.isWishlisted(Number(id)));
 
   const [qty, setQty] = useState(1);
 
@@ -138,21 +140,30 @@ const ProductDetail = () => {
         <div className="flex gap-4">
 
           <button
-            onClick={() => toggleWishlist.mutate(product.id)}
+            onClick={() => {
+              if (product) {
+                toggleWishlist.mutate(product);
+              }
+            }}
             className="px-4 py-2 border rounded-lg"
           >
-            {product?.isWishlisted ? "❤️ Wishlisted" : "🤍 Wishlist"}
+            {isWishlisted ? "❤️ Wishlisted" : "🤍 Wishlist"}
           </button>
 
           <button
-            disabled={product?.stock === 0 || addToCart.isPending}
+            disabled={product.stock === 0}
             onClick={() =>
               addToCart.mutate(
-                { productId: product.id, quantity: qty },
-                { onSuccess: () => setQty(1) }
+                { product, qty },
+                {
+                  onSuccess: () => { setQty(1) },
+                }
               )
             }
-            className="bg-black text-white px-6 py-2 rounded-lg disabled:opacity-50"
+            className={`px-6 py-2 rounded-lg text-white ${product?.stock === 0 || addToCart.isPending
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-black text-white"
+              }`}
           >
             {addToCart.isPending ? "Adding..." : "Add to Cart"}
           </button>

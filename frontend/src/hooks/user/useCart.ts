@@ -29,56 +29,39 @@ export const useCart = () => {
   });
 };
 
-export const useAddToCart =
-  () => {
-    const qc =
-      useQueryClient();
+export const useAddToCart = () => {
+  const qc = useQueryClient();
 
-    const cartStore =
-      useCartStore();
+  const cartStore = useCartStore();
 
-    return useMutation({
-      mutationFn: ({
-        product,
-        qty,
-      }: any) =>
-        userAPI.addToCart({
-          productId:
-            product.id,
-          quantity: qty,
-        }),
+  return useMutation({
+    mutationFn: ({ product, qty }: any) =>
+      userAPI.addToCart({
+        productId: product.id,
+        quantity: qty,
+      }),
 
-      onMutate: ({
-        product,
-        qty,
-      }) => {
-        // optimistic update once
-        cartStore.add(
-          product,
-          qty
-        );
-      },
+    onSuccess: () => {
+      toast.success("Added to cart 🛒");
+    },
 
-      onError: (
-        _,
-        variables
-      ) => {
-        // rollback
-        cartStore.update(
-          variables.product.id,
-          0
-        );
-      },
+    onMutate: ({ product, qty }) => {
+      // optimistic update once
+      cartStore.add(product, qty);
+    },
 
-      onSettled: () => {
-        qc.invalidateQueries({
-          queryKey: [
-            qk.cart,
-          ],
-        });
-      },
-    });
-  };
+    onError: (_, variables) => {
+      // rollback
+      cartStore.update(variables.product.id, 0);
+    },
+
+    onSettled: () => {
+      qc.invalidateQueries({
+        queryKey: [qk.cart],
+      });
+    },
+  });
+};
 
 export const useUpdateCart = () => {
   const qc = useQueryClient();

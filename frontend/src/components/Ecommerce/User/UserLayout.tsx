@@ -12,6 +12,7 @@ import {
 import {
   useRealtimeNotifications,
 } from "../../../hooks/user/useNotifications";
+import { useWishlist } from "../../../hooks/user/useWishlist";
 
 const UserLayout = () => {
 
@@ -19,6 +20,7 @@ const UserLayout = () => {
     useAuthStore();
 
   useRealtimeNotifications();
+  useWishlist();
 
   useEffect(() => {
 

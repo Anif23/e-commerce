@@ -75,14 +75,11 @@ const UserHeader = () => {
   const cartStore =
     useCartStore();
 
-  const wishlistStore =
-    useWishlistStore();
+  const wishlistCount =
+    useWishlistStore((s) => s.items.length);
 
   const cartCount =
     cartStore.getCount();
-
-  const wishlistCount =
-    wishlistStore.items.length;
 
   const nav = [
     {
@@ -329,6 +326,14 @@ const UserHeader = () => {
                         }
                       </p>
                     </div>
+
+                    <Link 
+                      to="/user/ecommerce/orders"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100"
+                    >
+                      <Package size={16} />
+                      Orders
+                    </Link>
 
                     <Link
                       to="/user/ecommerce/profile"

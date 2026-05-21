@@ -4,22 +4,44 @@ import toast from "react-hot-toast";
 import { qk } from "../../utils/queryKeys";
 import { getErrorMessage } from "../../utils/getErrorMessage";
 
+
 export const useCheckout = () => {
-  const qc = useQueryClient();
+
+  const qc =
+    useQueryClient();
 
   return useMutation({
-    mutationFn: (data: any) => userAPI.checkout(data),
 
-    onSuccess: () => {
-      toast.success("Order placed successfully 🎉");
+    mutationFn:
+      (data: any) =>
+        userAPI.checkout(data),
 
-      // clear cart cache
-      qc.invalidateQueries({ queryKey: qk.cart });
-      qc.invalidateQueries({ queryKey: qk.orders });
-    },
+    onSuccess:
+      async () => {
 
-    onError: (err: any) => {
-      toast.error(getErrorMessage(err));
-    },
+        toast.success(
+          "Checkout successful"
+        );
+
+        qc.setQueryData(
+          qk.cart,
+          {
+            items: [],
+          }
+        );
+
+        await qc.refetchQueries({
+          queryKey:
+            qk.orders,
+        });
+      },
+
+    onError:
+      (err: any) => {
+
+        toast.error(
+          getErrorMessage(err)
+        );
+      },
   });
 };

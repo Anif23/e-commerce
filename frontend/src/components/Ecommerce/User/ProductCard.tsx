@@ -51,8 +51,6 @@ const ProductCard = ({ product }: any) => {
       { product, qty },
       {
         onSuccess: () => {
-          toast.success("Added to cart 🛒");
-
           setQty(1);
         },
       }

@@ -4,9 +4,12 @@ import { useEffect } from "react";
 import { userAPI } from "../../api/user";
 import { socket } from "../../lib/socket";
 import { qk } from "../../utils/queryKeys";
+import { useAuthStore } from "../../store/authStore";
 
-export const useNotifications = () =>
-  useQuery({
+export const useNotifications = () => {
+  const token = useAuthStore((s) => s.token);
+
+  return useQuery({
     queryKey: qk.notifications,
 
     queryFn: async () => {
@@ -14,7 +17,9 @@ export const useNotifications = () =>
 
       return res.data.data;
     },
+    enabled: !!token,
   });
+};
 
 export const useMarkNotificationRead = () => {
   const qc = useQueryClient();
