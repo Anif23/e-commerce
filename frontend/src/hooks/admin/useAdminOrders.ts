@@ -12,6 +12,15 @@ export const useAdminOrders = (params: any) =>
     },
   });
 
+export const useAdminOrderById = (id: number) =>
+  useQuery({
+    queryKey: [qk.adminOrders, id],
+    queryFn: async () => {
+      const res = await adminAPI.orderDetail(id);
+      return res.data;
+    },
+  });
+
 export const useUpdateOrderStatus = () => {
   const qc = useQueryClient();
 
@@ -20,7 +29,7 @@ export const useUpdateOrderStatus = () => {
       adminAPI.updateOrderStatus(id, { status }),
 
     onSuccess: () => {
-      toast.success("Order updated");
+      toast.success("Order status updated successfully");
       qc.invalidateQueries({
         queryKey: [qk.adminOrders],
       });
@@ -31,3 +40,23 @@ export const useUpdateOrderStatus = () => {
     },
   });
 };
+
+export const useUpdateOrderPaymentStatus = () => {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, status }: any) =>
+      adminAPI.updatePaymentStatus(id, { status }),
+
+    onSuccess: () => {
+      toast.success("Payment status updated");
+      qc.invalidateQueries({
+        queryKey: [qk.adminOrders],
+      });
+    },
+
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed");
+    },
+  });
+}

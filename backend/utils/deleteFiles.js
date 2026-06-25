@@ -1,13 +1,16 @@
 import fs from "fs";
 
-export const deleteFiles = (files) => {
-  if (!files || files.length === 0) return;
+export const deleteFiles = (
+  files = []
+) => {
+  const list =
+    Array.isArray(files)
+      ? files
+      : [files];
 
-  files.forEach(file => {
-    fs.unlink(file.path, (err) => {
-      if (err) {
-        console.error("Failed to delete file:", file.path);
-      }
-    });
+  list.forEach((file) => {
+    if (!file?.path) return;
+
+    fs.unlink(file.path, () => {});
   });
 };

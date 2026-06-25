@@ -1,7 +1,8 @@
 import { prisma } from "../../../config/prisma.js";
 import { asyncHandler } from "../../../utils/AsyncHandler.js";
 import { ApiError } from "../../../utils/ApiError.js";
-import { getPagination, getMeta, searchBy } from "../../../utils/pagination.js";
+import { getPagination, getMeta } from "../../../utils/pagination.js";
+import { searchBy } from "../../../utils/common.js";
 
 export const adminOrderController = {
 
@@ -13,7 +14,7 @@ export const adminOrderController = {
                 page = 1,
             } = req.query;
 
-            const { limit } = getPagination();
+            const { limit } = getPagination(req.query);
 
             const currentPage = Number(page);
 
@@ -57,6 +58,7 @@ export const adminOrderController = {
                                     product: true,
                                 },
                             },
+                            payment: true
                         },
                     }
                 );
@@ -75,6 +77,35 @@ export const adminOrderController = {
         }
     ),
 
+    getOrderById: asyncHandler(async (req, res) => {
+        const orderId = Number(req.params.id);
+
+        const order = await prisma.order.findUnique({
+            where: { id: orderId },
+            include: {
+                items: {
+                    include: {
+                        product: {
+                            include: { images: true }
+                        },
+                    }
+                },
+                address: true,
+                user: true,
+                payment: true
+            }
+        });
+
+        if (!order) {
+            throw new ApiError(404, "Order not found");
+        }
+
+        res.json({
+            success: true,
+            data: order
+        });
+    }),
+
     updateOrderStatus: asyncHandler(async (req, res) => {
         const orderId = Number(req.params.id);
         const status = req.body?.status;
@@ -83,7 +114,7 @@ export const adminOrderController = {
             throw new ApiError(400, "Please give a status to update");
         }
 
-        const validStatus = ["PENDING", "PAID", "SHIPPED", "DELIVERED", "CANCELLED"];
+        const validStatus = ["PENDING", "SHIPPED", "DELIVERED", "CANCELLED"];
 
         if (!validStatus.includes(status)) {
             throw new ApiError(400, "Invalid status");
@@ -98,8 +129,7 @@ export const adminOrderController = {
         }
 
         const allowedTransitions = {
-            PENDING: ["PAID", "CANCELLED"],
-            PAID: ["SHIPPED", "CANCELLED"],
+            PENDING: ["SHIPPED", "CANCELLED"],
             SHIPPED: ["DELIVERED"],
             DELIVERED: [],
             CANCELLED: []
@@ -136,13 +166,6 @@ export const adminOrderController = {
             where: { orderId: Number(orderId) },
             data: { status }
         });
-
-        if (status === "SUCCESS") {
-            await prisma.order.update({
-                where: { id: Number(orderId) },
-                data: { status: "PAID" }
-            });
-        }
 
         res.json({
             success: true,

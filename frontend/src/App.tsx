@@ -4,7 +4,7 @@ import { PublicRoute } from "./utils/publicRoute";
 
 import Login from "./pages/Auth/login";
 import Register from "./pages/Auth/resigster";
-import Todos from "./pages/Todo/todos";
+import TodoPage from "./pages/Todo/todos";
 
 import Dashboard from "./pages/ECommerce/Admin/Dashboard";
 import Products from "./pages/ECommerce/Admin/Products/Page";
@@ -24,11 +24,12 @@ import EcommerceUserLayout from "./components/Ecommerce/User/UserLayout";
 import MainPage from "./pages";
 
 import { Toaster } from "react-hot-toast";
-import OrderDetail from "./pages/ECommerce/User/Orders/OrderDetail";
+import UserOrderDetail from "./pages/ECommerce/User/Orders/OrderDetail";
+import AdminOrderDetail from "./pages/ECommerce/Admin/Orders/OrderDetail";
 import WishlistPage from "./pages/ECommerce/User/Wishlist/Page";
 import OrdersPage from "./pages/ECommerce/Admin/Orders/Page";
 import CustomersPage from "./pages/ECommerce/Admin/Customers/Page";
-import NotificationPage from "./pages/ECommerce/Admin/Notifications/Page";
+import CampaignsPage from "./pages/ECommerce/Admin/Campaigns/Page";
 import { useEffect } from "react";
 
 function App() {
@@ -51,14 +52,14 @@ function App() {
       <BrowserRouter>
         <Routes>
 
-          {/* 🌍 PUBLIC */}
+          {/* PUBLIC */}
           <Route element={<PublicRoute />}>
             <Route path="/" element={<MainPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
           </Route>
 
-          {/* 🛍️ USER (PUBLIC ACCESS) */}
+          {/* USER (PUBLIC ACCESS) */}
           <Route path="/user/ecommerce" element={<EcommerceUserLayout />}>
             <Route index element={<UserPage />} />
             <Route path="products" element={<UserProducts />} />
@@ -67,15 +68,15 @@ function App() {
             <Route path="cart" element={<UserCart />} />
             <Route path="wishlist" element={<WishlistPage />} />
 
-            {/* 🔒 PROTECTED USER ROUTES */}
+            {/* PROTECTED USER ROUTES */}
             <Route element={<ProtectedRoute role="USER" />}>
               <Route path="orders" element={<UserOrders />} />
-              <Route path="orders/:id" element={<OrderDetail />} />
+              <Route path="orders/:id" element={<UserOrderDetail />} />
               <Route path="profile" element={<UserProfile />} />
             </Route>
           </Route>
 
-          {/* 🛠️ ADMIN */}
+          {/* ADMIN */}
           <Route element={<ProtectedRoute role="ADMIN" />}>
             <Route path="/admin/ecommerce" element={<EcommerceAdminLayout />}>
               <Route index element={<Dashboard />} />
@@ -86,12 +87,18 @@ function App() {
               <Route path="category" element={<CategoryForm />} />
               <Route path="category/:id" element={<CategoryForm />} />
               <Route path="orders" element={<OrdersPage />} />
+              <Route path="orders/:id" element={<AdminOrderDetail />} />
               <Route path="customers" element={<CustomersPage />} />
-              <Route path="notifications" element={<NotificationPage />} />
+              <Route path="campaigns" element={<CampaignsPage />} />
             </Route>
           </Route>
 
-          {/* ❌ FALLBACK */}
+          {/* TODO */}
+          <Route element={<ProtectedRoute role="USER" />}>
+            <Route path="/todo" element={<TodoPage />} />
+          </Route>
+
+          {/* FALLBACK */}
           <Route path="*" element={<Navigate to="/" replace />} />
 
         </Routes>

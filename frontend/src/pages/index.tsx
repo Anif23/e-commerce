@@ -3,28 +3,28 @@ import { useNavigate } from "react-router-dom";
 const projects = [
     {
         name: "Todo App",
-        path: "/login",
+        redirectTo: "/todo",
         icon: "📝",
         description: "Manage your daily tasks efficiently",
         color: "from-blue-500 to-blue-700",
     },
     {
-        name: "Ecommerce",
-        path: "/login",
+        name: "Admin Ecommerce",
+        redirectTo: "/admin/ecommerce",
         icon: "🛒",
         description: "Admin panel for products & categories",
         color: "from-purple-500 to-purple-700",
     },
     {
-        name: "Ecommerce",
-        path: "/user/ecommerce",
+        name: "User Ecommerce",
+        redirectTo: "/user/ecommerce",
         icon: "🛒",
         description: "Shopping with Asnif",
         color: "from-green-500 to-green-700",
     },
     {
         name: "Coming Soon",
-        path: "#",
+        redirectTo: "#",
         icon: "🚀",
         description: "More projects will be added",
         color: "from-gray-400 to-gray-600",
@@ -44,7 +44,15 @@ const Home = () => {
                 {projects.map((project, i) => (
                     <div
                         key={i}
-                        onClick={() => !project.disabled && navigate(project.path)}
+                        onClick={() => {
+                            if (!project.disabled) {
+                                navigate("/login", {
+                                    state: {
+                                        redirectTo: project.redirectTo,
+                                    },
+                                })
+                            }
+                        }}
                         className={`cursor-pointer rounded-2xl p-6 text-white shadow-lg transition transform hover:scale-105 hover:shadow-xl
               bg-linear-to-br ${project.color}
               ${project.disabled ? "opacity-60 cursor-not-allowed" : ""}

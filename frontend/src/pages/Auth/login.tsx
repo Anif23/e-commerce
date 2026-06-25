@@ -11,7 +11,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const redirectTo = location.state?.from;
+  const redirectTo = location.state?.redirectTo;
 
   const login = useLogin();
 
@@ -81,17 +81,22 @@ export default function Login() {
         } finally {
           setIsMerging(false);
         }
+
         const role = useAuthStore.getState().role;
 
-        let finalRedirect = "/user/ecommerce";
-
-        if (role === "ADMIN") {
-          finalRedirect = "/admin/ecommerce";
-        } else if (redirectTo && redirectTo !== "/login") {
-          finalRedirect = redirectTo;
+        // Redirect to requested page first
+        if (redirectTo) {
+          navigate(redirectTo, { replace: true });
+          return;
         }
 
-        navigate(finalRedirect);
+        navigate(
+          role === "ADMIN"
+            ? "/admin/ecommerce"
+            : "/user/ecommerce",
+          { replace: true }
+        );
+
       },
     });
   };
@@ -162,7 +167,7 @@ export default function Login() {
           Don’t have an account?{" "}
           <Link
             to="/register"
-            state={{ from: redirectTo }}
+            state={{ redirectTo }}
             className="text-blue-500 hover:underline"
           >
             Register

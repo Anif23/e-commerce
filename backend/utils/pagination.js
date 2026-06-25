@@ -1,19 +1,17 @@
-export const getPagination = () => {
+export const getPagination = (
+  query
+) => {
   const page =
-    Number(
-      process.env.PAGE ||
-      1
-    );
+    Number(query.page) || 1;
 
   const limit =
-    Number(
-      process.env.LIMIT ||
-      10
-    );
+    Number(query.limit) || 10;
 
   return {
     page,
     limit,
+    skip:
+      (page - 1) * limit,
   };
 };
 
@@ -23,9 +21,7 @@ export const getMeta = (
   limit
 ) => {
   const totalPages =
-    Math.ceil(
-      total / limit
-    );
+    Math.ceil(total / limit);
 
   return {
     total,
@@ -33,24 +29,7 @@ export const getMeta = (
     limit,
     totalPages,
     hasNext:
-      page <
-      totalPages,
-    hasPrev:
-      page > 1,
+      page < totalPages,
+    hasPrev: page > 1,
   };
 };
-
-export const searchBy = (
-  field,
-  value
-) =>
-  value
-    ? {
-      [field]: {
-        contains:
-          value,
-        mode:
-          "insensitive",
-      },
-    }
-    : {};

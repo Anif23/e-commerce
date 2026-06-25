@@ -6,6 +6,8 @@ import { categoryController } from "../../controller/ecommerce/category.js";
 import { adminController } from "../../controller/ecommerce/Admin/admin.js";
 import { adminOrderController } from "../../controller/ecommerce/Admin/order.js";
 import { adminCustomerController } from "../../controller/ecommerce/Admin/customer.js";
+import { campaignController } from "../../controller/ecommerce/Admin/campaign.js";
+import { adminNotificationController } from "../../controller/ecommerce/Admin/notification.js";
 
 export const adminRoutes = (app) => {
 
@@ -97,6 +99,13 @@ export const adminRoutes = (app) => {
         adminOrderController.getAllOrders
     );
 
+    app.get(
+        "/admin/orders/:id",
+        authMiddleware,
+        adminMiddleware,
+        adminOrderController.getOrderById
+    );
+
     app.put(
         "/admin/orders/:id/status",
         authMiddleware,
@@ -108,7 +117,7 @@ export const adminRoutes = (app) => {
         "/admin/orders/:id/payment",
         authMiddleware,
         adminMiddleware,
-        adminOrderController.updateOrderStatus
+        adminOrderController.updatePaymentStatus
     );
 
     app.get(
@@ -119,9 +128,51 @@ export const adminRoutes = (app) => {
     )
 
     app.post(
+        "/admin/campaigns/notifications",
+        authMiddleware,
+        adminMiddleware,
+        campaignController.sendNotification
+    )
+
+    app.get(
+        "/admin/campaigns/notifications",
+        authMiddleware,
+        adminMiddleware,
+        campaignController.getAllNotifications
+    )
+
+    app.get(
         "/admin/notifications",
         authMiddleware,
         adminMiddleware,
-        adminCustomerController.sendNotification
+        adminNotificationController.getNotifications
+    )
+
+    app.put(
+        "/admin/notifications/:id/read",
+        authMiddleware,
+        adminMiddleware,
+        adminNotificationController.markAsRead
+    )
+
+    app.put(
+        "/admin/notifications/read-all",
+        authMiddleware,
+        adminMiddleware,
+        adminNotificationController.markAllRead
+    )
+
+    app.delete(
+        "/admin/notifications/:id/delete",
+        authMiddleware,
+        adminMiddleware,
+        adminNotificationController.deleteNotification
+    )
+
+    app.delete(
+        "/admin/notifications/delete-all",
+        authMiddleware,
+        adminMiddleware,
+        adminNotificationController.deleteAllNotifications
     )
 };

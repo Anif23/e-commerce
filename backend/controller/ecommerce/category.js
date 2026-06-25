@@ -1,217 +1,260 @@
 import { prisma } from "../../config/prisma.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiError } from "../../utils/apiError.js";
+
 import { createCategorySchema } from "../../validations/ecommerce.js";
-import slugify from "slugify";
-import fs from "fs";
-import path from "path";
+
+import {
+  getPagination,
+  getMeta,
+} from "../../utils/pagination.js";
+
+import {
+  slug,
+  image,
+  searchBy,
+} from "../../utils/common.js";
+
 import { deleteFiles } from "../../utils/deleteFiles.js";
 
-export const categoryController = {
+export const categoryController =
+{
+  createCategory:
+    asyncHandler(
+      async (req, res) => {
 
-  createCategory: asyncHandler(async (req, res) => {
-    const body = createCategorySchema.parse(req.body);
-    const slug = slugify(body.name, { lower: true, strict: true });
+        const body =
+          createCategorySchema.parse(
+            req.body
+          );
 
-    const image = req.file
-      ? `http://localhost:8000/uploads/${req.file.filename}`
-      : null;
+        const exists =
+          await prisma.category.findFirst({
+            where: {
+              slug: slug(
+                body.name
+              ),
+            },
+          });
 
-    const existingCategory = await prisma.category.findFirst({
-      where: { slug }
-    });
+        if (exists)
+          throw new ApiError(
+            400,
+            "Category already exists"
+          );
 
-    if (existingCategory) {
-      throw new ApiError(400, "Category with this name already exists");
-    }
+        const category =
+          await prisma.category.create({
+            data: {
+              ...body,
 
-    const category = await prisma.category.create({
-      data: {
-        name: body.name,
-        slug,
-        parentId: body.parentId ?? null,
-        image
-      }
-    });
+              slug: slug(
+                body.name
+              ),
 
-    res.status(201).json({
-      success: true,
-      message: "Category created successfully",
-      data: category
-    });
-  }),
+              parentId:
+                body.parentId ||
+                null,
 
-  updateCategory: asyncHandler(async (req, res) => {
-    const { id } = req.params;
+              image: image(
+                req.file
+              ),
+            },
+          });
 
-    const body = createCategorySchema.partial().parse(req.body);
-
-    const category = await prisma.category.findUnique({
-      where: { id: Number(id) }
-    });
-
-    if (!category) {
-      deleteFiles(req.file ? [req.file] : []);
-      throw new ApiError(404, "Category not found");
-    }
-
-    let slug;
-    if (body.name) {
-      slug = slugify(body.name, { lower: true, strict: true });
-    }
-
-    // replace image
-    let image;
-    if (req.file) {
-      // delete old image
-      if (category.image) {
-        const filePath = path.join(
-          "uploads",
-          category.image.split("/uploads/")[1]
-        );
-
-        fs.unlink(filePath, err => {
-          if (err) console.error(err);
+        res.status(201).json({
+          success: true,
+          data: category,
         });
       }
+    ),
 
-      image = `http://localhost:8000/uploads/${req.file.filename}`;
-    }
+  updateCategory:
+    asyncHandler(
+      async (req, res) => {
 
-    const updatedCategory = await prisma.category.update({
-      where: { id: Number(id) },
-      data: {
-        ...(body.name && { name: body.name }),
-        ...(slug && { slug }),
-        ...(body.parentId !== undefined && {
-          parentId: body.parentId
-        }),
-        ...(image && { image })
-      }
-    });
+        const id = Number(
+          req.params.id
+        );
 
-    res.json({
-      success: true,
-      data: updatedCategory
-    });
-  }),
+        const body =
+          createCategorySchema
+            .partial()
+            .parse(req.body);
 
-  getCategories: asyncHandler(async (req, res) => {
-    const {
-      search = "",
-      page = 1,
-      limit = 8,
-    } = req.query;
+        const category =
+          await prisma.category.findUnique(
+            {
+              where: { id },
+            }
+          );
 
-    const currentPage =
-      Number(page) || 1;
+        if (!category) {
+          deleteFiles(req.file);
 
-    const perPage =
-      Number(limit) || 8;
-
-    const skip =
-      (currentPage - 1) *
-      perPage;
-
-    const where = {
-      parentId: null,
-
-      ...(search && {
-        name: {
-          contains: search,
-          mode:
-            "insensitive",
-        },
-      })
-    };
-
-    const total =
-      await prisma.category.count(
-        { where }
-      );
-
-    const categories =
-      await prisma.category.findMany(
-        {
-          where,
-          skip,
-          take: perPage,
-          orderBy: {
-            createdAt:
-              "desc",
-          },
-          include: {
-            children: true,
-          },
+          throw new ApiError(
+            404,
+            "Category not found"
+          );
         }
-      );
 
-    const totalPages =
-      Math.ceil(
-        total /
-        perPage
-      );
+        const updated =
+          await prisma.category.update(
+            {
+              where: { id },
 
-    res.json({
-      success: true,
-      data: categories,
-      pagination: {
-        total,
-        page:
-          currentPage,
-        limit:
-          perPage,
-        totalPages,
-        hasNext:
-          currentPage <
-          totalPages,
-        hasPrev:
-          currentPage >
-          1,
-      },
-    });
-  }),
+              data: {
+                ...body,
 
-  getCategoryById: asyncHandler(async (req, res) => {
-    const { id } = req.params;
+                ...(body.name && {
+                  slug: slug(
+                    body.name
+                  ),
+                }),
 
-    const category = await prisma.category.findUnique({
-      where: { id: Number(id) },
-      include: {
-        children: true,
-        products: true
+                ...(req.file && {
+                  image: image(
+                    req.file
+                  ),
+                }),
+              },
+            }
+          );
+
+        res.json({
+          success: true,
+          data: updated,
+        });
       }
-    });
+    ),
 
-    if (!category) throw new ApiError(404, "Category not found");
+  getCategories:
+    asyncHandler(
+      async (req, res) => {
 
-    res.json({
-      success: true,
-      data: category
-    });
-  }),
+        const {
+          search,
+        } = req.query;
 
-  deleteCategory: asyncHandler(async (req, res) => {
-    const { id } = req.params;
+        const {
+          page,
+          limit,
+          skip,
+        } = getPagination(
+          req.query
+        );
 
-    const productExists = await prisma.product.findFirst({
-      where: { categoryId: Number(id) }
-    });
+        const where = {
+          parentId: null,
 
-    if (productExists) {
-      throw new ApiError(
-        400,
-        "Cannot delete category with existing products"
-      );
-    }
+          ...searchBy(
+            "name",
+            search
+          ),
+        };
 
-    await prisma.category.delete({
-      where: { id: Number(id) }
-    });
+        const [
+          total,
+          data,
+        ] = await Promise.all([
+          prisma.category.count({
+            where,
+          }),
 
-    res.json({
-      success: true,
-      message: "Category deleted successfully"
-    });
-  })
+          prisma.category.findMany({
+            where,
+            skip,
+            take: limit,
+
+            orderBy: {
+              createdAt:
+                "desc",
+            },
+
+            include: {
+              children: true,
+            },
+          }),
+        ]);
+
+        res.json({
+          success: true,
+
+          data,
+
+          pagination:
+            getMeta(
+              total,
+              page,
+              limit
+            ),
+        });
+      }
+    ),
+
+  getCategoryById:
+    asyncHandler(
+      async (req, res) => {
+
+        const category =
+          await prisma.category.findUnique(
+            {
+              where: {
+                id: Number(
+                  req.params.id
+                ),
+              },
+
+              include: {
+                children: true,
+                products: true,
+              },
+            }
+          );
+
+        if (!category)
+          throw new ApiError(
+            404,
+            "Category not found"
+          );
+
+        res.json({
+          success: true,
+          data: category,
+        });
+      }
+    ),
+
+  deleteCategory:
+    asyncHandler(
+      async (req, res) => {
+
+        const id = Number(
+          req.params.id
+        );
+
+        const product =
+          await prisma.product.findFirst({
+            where: {
+              categoryId: id,
+            },
+          });
+
+        if (product)
+          throw new ApiError(
+            400,
+            "Category has products"
+          );
+
+        await prisma.category.delete({
+          where: { id },
+        });
+
+        res.json({
+          success: true,
+          message:
+            "Category deleted",
+        });
+      }
+    ),
 };

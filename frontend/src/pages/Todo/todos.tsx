@@ -2,6 +2,8 @@ import axios from "../../api/client";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "react-hot-toast";
+import { userAPI } from "../../api/user";
+import { useAuthStore } from "../../store/authStore";
 
 const Todos = () => {
 
@@ -76,92 +78,196 @@ const Todos = () => {
         }
     };
 
+    const handleLogout =
+        async () => {
+            try {
+                await userAPI.logout();
+            } finally {
+                useAuthStore
+                    .getState()
+                    .logout();
+
+                window.location.href =
+                    "/login";
+            }
+        };
+
+
+    const completed =
+        todoList.filter(
+            (t: any) => t.completed
+        ).length;
+
+    const pending =
+        todoList.length -
+        completed;
+
     return (
-        <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-            <div className="w-full max-w-xl bg-white rounded-2xl shadow-lg p-6">
+        <div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900">
 
-                <h1 className="text-2xl font-bold text-center mb-6">
-                    Todo App 🚀
-                </h1>
+            {/* HEADER */}
+            <div className="border-b border-white/10 backdrop-blur-lg sticky top-0 z-50">
+                <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
 
-                <div className="flex gap-2 mb-6">
-                    <input
-                        type="text"
-                        placeholder="Enter todo..."
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                        onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                                handleAdd();
-                            }
-                        }}
-                        className="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <div>
+                        <h1 className="text-2xl font-bold text-white">
+                            Todo Dashboard
+                        </h1>
+                        <p className="text-xs text-gray-400">
+                            Manage your daily tasks
+                        </p>
+                    </div>
+
                     <button
-                        onClick={handleAdd}
-                        className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition"
+                        onClick={handleLogout}
+                        className="px-4 py-2 rounded-xl bg-red-500 text-white hover:bg-red-600"
                     >
-                        Add
+                        Logout
                     </button>
-                </div>
 
-                <div className="space-y-3">
-                    {todoList?.length === 0 && (
-                        <p className="text-center text-gray-400">No todos yet</p>
-                    )}
-
-                    {todoList.map((todo: any) => (
-                        <div
-                            key={todo.id}
-                            className="flex items-center justify-between bg-gray-50 p-3 rounded-lg hover:shadow-sm transition"
-                        >
-                            <div className="flex items-center gap-3">
-                                <input
-                                    type="checkbox"
-                                    checked={todo.completed}
-                                    onChange={() => toggleTodo(todo)}
-                                    className="w-5 h-5 cursor-pointer"
-                                />
-
-                                <span
-                                    className={`${todo.completed
-                                        ? "line-through text-gray-400"
-                                        : "text-gray-800"
-                                        }`}
-                                >
-                                    {todo.title}
-                                </span>
-                            </div>
-
-                            <button
-                                onClick={() => deleteTodo(todo.id)}
-                                className="text-red-500 hover:text-red-700 transition"
-                            >
-                                ✕
-                            </button>
-                        </div>
-                    ))}
                 </div>
             </div>
 
-            {/* Logout Button */}
-            <button
-                onClick={async () => {
-                    try {
-                        const res = await axios.post("/auth/logout");
-                        if (res.data.success) {
-                            toast.success(res.data.message);
-                            localStorage.removeItem("token");
-                            navigate("/login");
-                        }
-                    } catch (err) {
-                        console.error("Logout failed:", err);
-                    }
-                }}
-                className="fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
-            >
-                Logout
-            </button>
+            <div className="max-w-5xl mx-auto p-6">
+
+                {/* STATS */}
+                <div className="grid md:grid-cols-3 gap-4 mb-6">
+
+                    <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-2xl p-5">
+                        <p className="text-gray-400 text-sm">
+                            Total Tasks
+                        </p>
+                        <h2 className="text-3xl font-bold text-white">
+                            {todoList.length}
+                        </h2>
+                    </div>
+
+                    <div className="bg-green-500/10 border border-green-500/20 rounded-2xl p-5">
+                        <p className="text-green-300 text-sm">
+                            Completed
+                        </p>
+                        <h2 className="text-3xl font-bold text-white">
+                            {completed}
+                        </h2>
+                    </div>
+
+                    <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-5">
+                        <p className="text-yellow-300 text-sm">
+                            Pending
+                        </p>
+                        <h2 className="text-3xl font-bold text-white">
+                            {pending}
+                        </h2>
+                    </div>
+
+                </div>
+
+                {/* ADD TODO */}
+                <div className="bg-white rounded-3xl shadow-xl p-6 mb-6">
+
+                    <div className="flex gap-3">
+
+                        <input
+                            value={title}
+                            onChange={(e) =>
+                                setTitle(
+                                    e.target.value
+                                )
+                            }
+                            placeholder="Add a new task..."
+                            className="flex-1 border rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+
+                        <button
+                            onClick={handleAdd}
+                            className="px-6 rounded-xl bg-blue-600 text-white hover:bg-blue-700"
+                        >
+                            Add
+                        </button>
+
+                    </div>
+
+                </div>
+
+                {/* TODOS */}
+                <div className="space-y-3">
+
+                    {todoList.length === 0 ? (
+                        <div className="bg-white rounded-3xl p-12 text-center">
+                            <div className="text-6xl mb-4">
+                                📝
+                            </div>
+
+                            <h3 className="font-semibold text-xl">
+                                No Todos Found
+                            </h3>
+
+                            <p className="text-gray-500 mt-2">
+                                Add your first task
+                            </p>
+                        </div>
+                    ) : (
+                        todoList.map(
+                            (todo: any) => (
+                                <div
+                                    key={todo.id}
+                                    className="bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm hover:shadow-lg transition"
+                                >
+
+                                    <div className="flex items-center gap-4">
+
+                                        <input
+                                            type="checkbox"
+                                            checked={
+                                                todo.completed
+                                            }
+                                            onChange={() =>
+                                                toggleTodo(
+                                                    todo
+                                                )
+                                            }
+                                            className="w-5 h-5"
+                                        />
+
+                                        <div>
+                                            <p
+                                                className={
+                                                    todo.completed
+                                                        ? "line-through text-gray-400"
+                                                        : "font-medium"
+                                                }
+                                            >
+                                                {todo.title}
+                                            </p>
+
+                                            <p className="text-xs text-gray-400">
+                                                Task #
+                                                {todo.id}
+                                            </p>
+                                        </div>
+
+                                    </div>
+
+                                    <button
+                                        onClick={() =>
+                                            deleteTodo(
+                                                todo.id
+                                            )
+                                        }
+                                        className="w-9 h-9 rounded-lg bg-red-50 text-red-500 hover:bg-red-100"
+                                    >
+                                        ✕
+                                    </button>
+
+                                </div>
+                            )
+                        )
+                    )}
+
+                </div>
+
+            </div>
+
         </div>
     );
 };

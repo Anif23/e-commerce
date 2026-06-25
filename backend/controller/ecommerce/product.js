@@ -1,227 +1,251 @@
 import { prisma } from "../../config/prisma.js";
+
 import { asyncHandler } from "../../utils/asyncHandler.js";
+
 import { ApiError } from "../../utils/apiError.js";
-import { createProductSchema, updateProductSchema } from "../../validations/ecommerce.js";
-import fs from "fs";
-import path from "path";
-import { deleteFiles } from "../../utils/deleteFiles.js";
 
 import {
-    generateSlug,
-    generateSKU,
-    cleanBody,
-    parseTags,
-    toDate,
-    normalizeValue,
-    toBoolean
-} from "../../utils/productUtils.js";
+    slug,
+    sku,
+    bool,
+    num,
+    date,
+    tags,
+    searchBy,
+    image,
+} from "../../utils/common.js";
 
-export const productController = {
+import {
+    getPagination,
+    getMeta,
+} from "../../utils/pagination.js";
 
+import { deleteFiles } from "../../utils/deleteFiles.js";
+
+const wishlistInclude = (
+    userId
+) =>
+    userId
+        ? {
+            where: {
+                wishlist: {
+                    userId,
+                },
+            },
+
+            select: {
+                id: true,
+            },
+        }
+        : false;
+
+export const productController =
+{
     getProducts:
-        asyncHandler(async (req, res) => {
+        asyncHandler(
+            async (req, res) => {
 
-            const {
-                search,
-                categoryId,
-                page = 1,
-                limit = 3,
-                isActive,
-            } = req.query;
+                const {
+                    search,
+                    categoryId,
+                    isActive,
+                } = req.query;
 
-            const userId =
-                req.user?.id;
+                const userId =
+                    req.user?.id;
 
-            const currentPage =
-                Number(page);
-
-            const perPage =
-                Number(limit);
-
-            const where = {
-                isDeleted: false,
-                isActive: true,
-
-                ...(search && {
-                    name: {
-                        contains: search,
-                        mode: "insensitive",
-                    },
-                }),
-
-                ...(categoryId && {
-                    categoryId:
-                        Number(categoryId),
-                }),
-
-                ...(typeof isActive !==
-                    "undefined" && {
-                    isActive:
-                        toBoolean(isActive),
-                }),
-            };
-
-            const total =
-                await prisma.product.count({
-                    where,
-                });
-
-            const products =
-                await prisma.product.findMany({
-                    where,
-
-                    skip:
-                        (currentPage - 1) *
-                        perPage,
-
-                    take: perPage,
-
-                    orderBy: {
-                        createdAt: "desc",
-                    },
-
-                    include: {
-                        category: true,
-                        images: true,
-
-                        wishlistItems:
-                            userId
-                                ? {
-                                    where: {
-                                        wishlist: {
-                                            userId,
-                                        },
-                                    },
-
-                                    select: {
-                                        id: true,
-                                    },
-                                }
-                                : false,
-                    },
-                });
-
-            const data =
-                products.map((p) => ({
-                    ...p,
-
-                    isWishlisted:
-                        p.wishlistItems
-                            ?.length > 0,
-
-                    wishlistItems:
-                        undefined,
-                }));
-
-            const totalPages =
-                Math.ceil(
-                    total / perPage
+                const {
+                    page,
+                    limit,
+                    skip,
+                } = getPagination(
+                    req.query
                 );
 
-            res.json({
-                success: true,
+                const where = {
+                    isDeleted: false,
 
-                data,
+                    ...searchBy(
+                        "name",
+                        search
+                    ),
 
-                pagination: {
+                    ...(categoryId && {
+                        categoryId:
+                            Number(
+                                categoryId
+                            ),
+                    }),
+
+                    ...(isActive !==
+                        undefined && {
+                        isActive:
+                            bool(
+                                isActive
+                            ),
+                    }),
+                };
+
+                const [
                     total,
-                    page: currentPage,
-                    limit: perPage,
-                    totalPages,
+                    products,
+                ] = await Promise.all([
+                    prisma.product.count({
+                        where,
+                    }),
 
-                    hasNext:
-                        currentPage <
-                        totalPages,
+                    prisma.product.findMany({
+                        where,
 
-                    hasPrev:
-                        currentPage > 1,
-                },
-            });
-        }),
+                        skip,
+                        take: limit,
+
+                        orderBy: {
+                            createdAt:
+                                "desc",
+                        },
+
+                        include: {
+                            category: true,
+                            images: true,
+
+                            wishlistItems:
+                                wishlistInclude(
+                                    userId
+                                ),
+                        },
+                    }),
+                ]);
+
+                res.json({
+                    success: true,
+
+                    data:
+                        products.map(
+                            ({
+                                wishlistItems,
+                                ...p
+                            }) => ({
+                                ...p,
+
+                                isWishlisted:
+                                    !!wishlistItems?.length,
+                            })
+                        ),
+
+                    pagination:
+                        getMeta(
+                            total,
+                            page,
+                            limit
+                        ),
+                });
+            }
+        ),
 
     createProduct: asyncHandler(async (req, res) => {
-        const body = createProductSchema.parse(req.body);
+
+        const b = req.body;
 
         const category = await prisma.category.findUnique({
-            where: { id: Number(body.categoryId) }
+            where: {
+                id: Number(b.categoryId),
+            },
         });
 
-        if (!category) throw new ApiError(404, "Category not found");
+        if (!category) {
+            throw new ApiError(404, "Category not found");
+        }
 
-        const slug = generateSlug(body.name);
+        const productSlug = slug(b.name);
 
-        const existing = await prisma.product.findFirst({
-            where: { slug }
+        const exists = await prisma.product.findFirst({
+            where: { slug: productSlug },
         });
 
-        if (existing) {
+        if (exists) {
             throw new ApiError(400, "Product already exists");
         }
 
-        // AUTO SKU (fallback if not provided)
-        const sku =
-            body.sku && body.sku !== "null"
-                ? body.sku
-                : generateSKU(body.name, category.name);
-
-        const images =
-            req.files?.map((f) => ({
-                url: `http://localhost:8000/uploads/${f.filename}`
-            })) || [];
-
         const product = await prisma.product.create({
             data: {
-                name: body.name,
-                slug,
-                sku,
+                name: b.name,
+                slug: productSlug,
 
-                description: body.description,
-                price: Number(body.price),
-                stock: Number(body.stock),
-                lowStock: Number(body.lowStock ?? 5),
+                sku:
+                    b.sku ||
+                    sku(b.name, category.name),
 
-                isActive: toBoolean.isActive ?? true,
-                isFeatured: toBoolean.isFeatured ?? false,
+                description: b.description,
 
-                brand: body.brand || null,
-                tags: parseTags(body.tags),
+                price: num(b.price),
+                stock: num(b.stock),
+                lowStock: num(b.lowStock) || 5,
 
-                discountType: body.discountType || null,
-                discountValue: body.discountValue ? Number(body.discountValue) : null,
-                discountStart: toDate(body.discountStart),
-                discountEnd: toDate(body.discountEnd),
+                isActive: bool(b.isActive),
+                isFeatured: bool(b.isFeatured),
 
-                categoryId: Number(body.categoryId),
+                brand: b.brand || null,
+                tags: tags(b.tags),
 
-                images: {
-                    create: images
-                }
+                ...(b.discountType && {
+                    discountType: b.discountType,
+                }),
+
+                ...(b.discountValue && {
+                    discountValue: num(
+                        b.discountValue
+                    ),
+                }),
+
+                ...(b.discountStart && {
+                    discountStart: date(
+                        b.discountStart
+                    ),
+                }),
+
+                ...(b.discountEnd && {
+                    discountEnd: date(
+                        b.discountEnd
+                    ),
+                }),
+
+                categoryId: Number(
+                    b.categoryId
+                ),
+
+                ...(req.files?.length && {
+                    images: {
+                        create: req.files.map(
+                            (file) => ({
+                                url: image(file),
+                            })
+                        ),
+                    },
+                }),
             },
+
             include: {
+                category: true,
                 images: true,
-                category: true
-            }
+            },
         });
 
         res.status(201).json({
             success: true,
-            message: "Product created successfully",
-            data: product
+            message: "Product created",
+            data: product,
         });
+
     }),
 
     updateProduct: asyncHandler(async (req, res) => {
-        const { id } = req.params;
-        const productId = Number(id);
 
-        const body = updateProductSchema.parse(req.body);
-        const clean = Object.fromEntries(
-            Object.entries(body).map(([k, v]) => [k, normalizeValue(v)])
-        );
+        const id = Number(req.params.id);
+        const b = req.body;
 
         const product = await prisma.product.findUnique({
-            where: { id: productId },
-            include: { images: true }
+            where: { id },
         });
 
         if (!product) {
@@ -229,172 +253,242 @@ export const productController = {
             throw new ApiError(404, "Product not found");
         }
 
-        // CATEGORY CHECK
-        if (clean.categoryId) {
+        if (b.categoryId) {
             const category = await prisma.category.findUnique({
-                where: { id: Number(clean.categoryId) }
-            });
-
-            if (!category) throw new ApiError(404, "Category not found");
-        }
-
-        // SLUG + NAME
-        let slug = product.slug;
-
-        if (clean.name) {
-            slug = generateSlug(clean.name);
-
-            const duplicate = await prisma.product.findFirst({
                 where: {
-                    slug,
-                    NOT: { id: productId }
-                }
+                    id: Number(b.categoryId),
+                },
             });
 
-            if (duplicate) {
-                throw new ApiError(400, "Duplicate product name");
+            if (!category) {
+                throw new ApiError(404, "Category not found");
             }
         }
 
-        // SKU (allow update OR keep old OR regenerate)
-        let sku = product.sku;
+        const productSlug = b.name
+            ? slug(b.name)
+            : product.slug;
 
-        if (clean.sku) {
-            sku = clean.sku;
-        } else if (!sku) {
-            const category = await prisma.category.findUnique({
-                where: { id: product.categoryId }
+        if (b.name) {
+            const exists = await prisma.product.findFirst({
+                where: {
+                    slug: productSlug,
+                    NOT: { id },
+                },
             });
 
-            sku = generateSKU(clean.name || product.name, category?.name || "PROD");
+            if (exists) {
+                throw new ApiError(400, "Product already exists");
+            }
         }
 
-        // DELETE IMAGES
-        let deleteIds = clean.deleteImages;
+        if (b.deleteImages) {
 
-        if (deleteIds) {
-            deleteIds = Array.isArray(deleteIds) ? deleteIds : [deleteIds];
-
-            const toDelete = product.images.filter((img) =>
-                deleteIds.includes(img.id)
-            );
-
-            toDelete.forEach((img) => {
-                const filePath = path.join(
-                    "uploads",
-                    img.url.split("/uploads/")[1]
-                );
-                fs.unlink(filePath, () => { });
-            });
+            const ids = Array.isArray(
+                b.deleteImages
+            )
+                ? b.deleteImages.map(Number)
+                : [Number(b.deleteImages)];
 
             await prisma.productImage.deleteMany({
-                where: { id: { in: deleteIds } }
+                where: {
+                    id: {
+                        in: ids,
+                    },
+                },
             });
         }
 
-        const newImages =
-            req.files?.map((f) => ({
-                url: `http://localhost:8000/uploads/${f.filename}`
-            })) || [];
-
         const updated = await prisma.product.update({
-            where: { id: productId },
+            where: { id },
+
             data: {
-                name: clean.name,
-                slug,
-                sku,
+                ...(b.name && {
+                    name: b.name,
+                    slug: productSlug,
+                }),
 
-                description: clean.description,
-                price: clean.price ? Number(clean.price) : undefined,
-                stock: clean.stock ? Number(clean.stock) : undefined,
-                lowStock: clean.lowStock ? Number(clean.lowStock) : undefined,
+                ...(b.sku && {
+                    sku: b.sku,
+                }),
 
-                isActive: toBoolean.isActive,
-                isFeatured: toBoolean.isFeatured,
+                ...(b.description !== undefined && {
+                    description: b.description,
+                }),
 
-                brand: clean.brand || null,
-                tags: parseTags(clean.tags),
+                ...(b.price && {
+                    price: num(b.price),
+                }),
 
-                discountType: clean.discountType || null,
-                discountValue: clean.discountValue ? Number(clean.discountValue) : null,
-                discountStart: toDate(clean.discountStart),
-                discountEnd: toDate(clean.discountEnd),
+                ...(b.stock && {
+                    stock: num(b.stock),
+                }),
 
-                categoryId: clean.categoryId ? Number(clean.categoryId) : undefined,
+                ...(b.lowStock && {
+                    lowStock: num(b.lowStock),
+                }),
 
-                images: {
-                    create: newImages
-                }
+                ...(b.isActive !== undefined && {
+                    isActive: bool(b.isActive),
+                }),
+
+                ...(b.isFeatured !== undefined && {
+                    isFeatured: bool(b.isFeatured),
+                }),
+
+                ...(b.brand !== undefined && {
+                    brand: b.brand,
+                }),
+
+                ...(b.tags && {
+                    tags: tags(b.tags),
+                }),
+
+                ...(b.discountType && {
+                    discountType: b.discountType,
+                }),
+
+                ...(b.discountValue && {
+                    discountValue: num(
+                        b.discountValue
+                    ),
+                }),
+
+                ...(b.discountStart && {
+                    discountStart: date(
+                        b.discountStart
+                    ),
+                }),
+
+                ...(b.discountEnd && {
+                    discountEnd: date(
+                        b.discountEnd
+                    ),
+                }),
+
+                ...(b.categoryId && {
+                    categoryId: Number(
+                        b.categoryId
+                    ),
+                }),
+
+                ...(req.files?.length && {
+                    images: {
+                        create: req.files.map(
+                            (file) => ({
+                                url: image(file),
+                            })
+                        ),
+                    },
+                }),
             },
-            include: {
-                images: true,
-                category: true
-            }
-        });
 
-        res.json({
-            success: true,
-            message: "Product updated successfully",
-            data: updated
-        });
-    }),
-
-    deleteProduct: asyncHandler(async (req, res) => {
-        const { id } = req.params;
-
-        const productId = Number(id);
-
-        const product = await prisma.product.findUnique({
-            where: { id: productId }
-        });
-
-        if (!product) throw new ApiError(404, "Product not found");
-
-        await prisma.product.update({
-            where: { id: productId },
-            data: {
-                isDeleted: true,
-                isActive: false
-            }
-        });
-
-        res.json({
-            success: true,
-            message: "Product deleted successfully"
-        });
-    }),
-
-    getProductById: asyncHandler(async (req, res) => {
-        const { id } = req.params;
-        const userId = req.user?.id;
-
-        const product = await prisma.product.findUnique({
-            where: { id: Number(id), isDeleted: false },
             include: {
                 category: true,
                 images: true,
-
-                wishlistItems: userId
-                    ? {
-                        where: {
-                            wishlist: {
-                                userId,
-                            },
-                        },
-                        select: { id: true },
-                    }
-                    : false,
             },
         });
-
-        if (!product) throw new ApiError(404, "Product not found");
 
         res.json({
             success: true,
-            data: {
-                ...product,
-                isWishlisted: userId ? product.wishlistItems.length > 0 : false,
-            },
+            message: "Product updated",
+            data: updated,
         });
-    })
+
+    }),
+
+    deleteProduct:
+        asyncHandler(
+            async (req, res) => {
+
+                const id = Number(
+                    req.params.id
+                );
+
+                const product =
+                    await prisma.product.findUnique(
+                        {
+                            where: { id },
+                        }
+                    );
+
+                if (!product)
+                    throw new ApiError(
+                        404,
+                        "Product not found"
+                    );
+
+                await prisma.product.update(
+                    {
+                        where: { id },
+
+                        data: {
+                            isDeleted: true,
+                            isActive: false,
+                        },
+                    }
+                );
+
+                res.json({
+                    success: true,
+                    message:
+                        "Product deleted",
+                });
+            }
+        ),
+
+    getProductById:
+        asyncHandler(
+            async (req, res) => {
+
+                const userId =
+                    req.user?.id;
+
+                const product =
+                    await prisma.product.findUnique(
+                        {
+                            where: {
+                                id: Number(
+                                    req.params.id
+                                ),
+
+                                isDeleted:
+                                    false,
+                            },
+
+                            include: {
+                                category:
+                                    true,
+
+                                images:
+                                    true,
+
+                                wishlistItems:
+                                    wishlistInclude(
+                                        userId
+                                    ),
+                            },
+                        }
+                    );
+
+                if (!product)
+                    throw new ApiError(
+                        404,
+                        "Product not found"
+                    );
+
+                res.json({
+                    success: true,
+
+                    data: {
+                        ...product,
+
+                        isWishlisted:
+                            !!product
+                                .wishlistItems
+                                ?.length,
+                    },
+                });
+            }
+        ),
 };

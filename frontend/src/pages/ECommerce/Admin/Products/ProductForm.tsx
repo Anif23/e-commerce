@@ -44,9 +44,11 @@ const ProductForm = () => {
     );
 
   const {
-    data: categories = [],
+    data: categoriesData,
   } =
     useAdminCategories();
+
+  const categories = categoriesData?.data || [];
 
   const createProduct =
     useCreateProduct();
@@ -402,12 +404,12 @@ const ProductForm = () => {
               }
               options={categories.map(
                 (
-                  c: any
+                  cat : any
                 ) => ({
                   label:
-                    c.name,
+                    cat.name,
                   value:
-                    c.id,
+                    cat.id,
                 })
               )}
             />

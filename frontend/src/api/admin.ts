@@ -9,7 +9,7 @@ export const adminAPI = {
     api.put(`/admin/products/${id}`, data),
   deleteProduct: (id: number) => api.delete(`/admin/products/${id}`),
 
-  categories: (params: any) => api.get("/admin/categories", { params}),
+  categories: (params: any) => api.get("/admin/categories", { params }),
   category: (id: number) => api.get(`/admin/categories/${id}`),
   createCategory: (data: FormData) => api.post("/admin/categories", data),
   updateCategory: (id: number, data: FormData) =>
@@ -17,6 +17,7 @@ export const adminAPI = {
   deleteCategory: (id: number) => api.delete(`/admin/categories/${id}`),
 
   orders: (params: any) => api.get("/admin/orders", { params }),
+  orderDetail: (id: number) => api.get(`/admin/orders/${id}`),
   updateOrderStatus: (id: number, data: any) =>
     api.put(`/admin/orders/${id}/status`, data),
   updatePaymentStatus: (id: number, data: any) =>
@@ -24,5 +25,15 @@ export const adminAPI = {
 
   customers: (params: any) => api.get("/admin/customers", { params }),
 
-  sendNotification: (data: any) => api.post("/admin/notifications", data),
+  campaignNotifications: (params: any) =>
+    api.get("/admin/campaigns/notifications", { params }),
+  sendCampaignNotification: (data: any) =>
+    api.post("/admin/campaigns/notifications", data),
+
+  notifications: () => api.get("/admin/notifications"),
+  markNotificationRead: (id: number) =>
+    api.put(`/admin/notifications/${id}/read`),
+  markAllNotificationRead: () => api.put("/admin/notifications/read-all"),
+  deleteNotification: (id: number) => api.delete(`/admin/notifications/${id}/delete`),
+  deleteAllNotifications: () => api.delete("/admin/notifications/delete-all"),
 };

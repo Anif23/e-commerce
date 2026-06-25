@@ -9,17 +9,7 @@ import { Server } from "socket.io";
 import { todoRoutes } from "./routes/todo.js";
 import { authRoutes } from "./routes/auth.js";
 
-import {
-  productRoutes,
-  cartRoutes,
-  categoryRoutes,
-  checkOutRoutes,
-  orderRoutes,
-  mergeApiRoutes,
-  wishlistRoutes,
-  profileRoutes,
-  notificationRoutes
-} from "./routes/ecommerce/user.js";
+import { userRoutes } from "./routes/ecommerce/user.js";
 
 import { adminRoutes } from "./routes/ecommerce/admin.js";
 
@@ -119,23 +109,7 @@ authRoutes(app);
 
 adminRoutes(app);
 
-productRoutes(app);
-
-categoryRoutes(app);
-
-cartRoutes(app);
-
-checkOutRoutes(app);
-
-orderRoutes(app);
-
-mergeApiRoutes(app);
-
-wishlistRoutes(app);
-
-profileRoutes(app);
-
-notificationRoutes(app);
+userRoutes(app);
 
 todoRoutes(app);
 

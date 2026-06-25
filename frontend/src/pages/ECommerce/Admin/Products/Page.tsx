@@ -1,7 +1,4 @@
-// pages/Admin/Ecommerce/Products/index.tsx
-
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Package,
   Star,
@@ -23,17 +20,63 @@ const Products = () => {
   const navigate =
     useNavigate();
 
+  const [
+    searchParams,
+    setSearchParams,
+  ] = useSearchParams();
+
   const deleteProduct =
     useDeleteProduct();
 
-  const [page, setPage] =
-    useState(1);
+  // URL FILTERS
+  const page = Number(
+    searchParams.get("page") || 1
+  );
 
-  const [search, setSearch] =
-    useState("");
+  const search =
+    searchParams.get("search") || "";
 
-  const [status, setStatus] =
-    useState("all");
+  const status =
+    searchParams.get("status") || "all";
+
+  const updateFilters = (
+    key: string,
+    value: string
+  ) => {
+    const params =
+      new URLSearchParams(
+        searchParams
+      );
+
+    if (
+      value &&
+      value !== "all"
+    ) {
+      params.set(key, value);
+    } else {
+      params.delete(key);
+    }
+
+    params.set("page", "1");
+
+    setSearchParams(params);
+  };
+
+  const setPage = (
+    value: number
+  ) => {
+    const params =
+      new URLSearchParams(
+        searchParams
+      );
+
+    params.set(
+      "page",
+      value.toString()
+    );
+
+    setSearchParams(params);
+  };
 
   const { data, isLoading } =
     useAdminProducts({
@@ -42,9 +85,7 @@ const Products = () => {
       isActive:
         status === "all"
           ? undefined
-          : status === "active"
-            ? true
-            : false,
+          : status === "active",
     });
 
   const products =
@@ -56,6 +97,7 @@ const Products = () => {
   const columns = [
     {
       header: "Product",
+
       render: (row: any) => (
         <div className="flex gap-3 items-center">
           <img
@@ -68,6 +110,7 @@ const Products = () => {
 
           <div>
             <p>{row.name}</p>
+
             <p className="text-xs text-gray-400">
               {
                 row.category
@@ -78,11 +121,14 @@ const Products = () => {
         </div>
       ),
     },
+
     {
       header: "Price",
+
       render: (row: any) =>
         `₹${row.price}`,
     },
+
     {
       header: "Stock",
       accessor: "stock",
@@ -91,6 +137,7 @@ const Products = () => {
 
   return (
     <div className="space-y-6">
+
       <PageHeader
         title="Products"
         subtitle="Manage products"
@@ -103,6 +150,7 @@ const Products = () => {
       />
 
       <div className="grid md:grid-cols-3 gap-5">
+
         <StatsCard
           title="Products"
           value={pg.total || 0}
@@ -129,22 +177,28 @@ const Products = () => {
           ).length}
           icon={<Star />}
         />
+
       </div>
 
       <FilterBar
         search={search}
-        setSearch={(v) => {
-          setSearch(v);
-          setPage(1);
-        }}
+        setSearch={(v) =>
+          updateFilters(
+            "search",
+            v
+          )
+        }
         total={pg.total || 0}
         selects={[
           {
             value: status,
-            onChange: (v) => {
-              setStatus(v);
-              setPage(1);
-            },
+
+            onChange: (v) =>
+              updateFilters(
+                "status",
+                v
+              ),
+
             options: [
               {
                 label: "All",
@@ -196,6 +250,7 @@ const Products = () => {
         hasPrev={pg.hasPrev}
         setPage={setPage}
       />
+
     </div>
   );
 };

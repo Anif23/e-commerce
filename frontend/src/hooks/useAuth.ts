@@ -56,7 +56,7 @@ export const useLogout = () => {
 
       useWishlistStore.getState().clear();
 
-      window.location.href = "/login";
+      window.location.href = "/";
     },
   });
 };

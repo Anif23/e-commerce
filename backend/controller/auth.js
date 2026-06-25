@@ -3,6 +3,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { createAdminNotification } from "../utils/AdminNotification.js";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const REFRESH_SECRET = process.env.REFRESH_SECRET;
@@ -33,6 +34,12 @@ export const authController = {
                 email,
                 password: hash,
             },
+        });
+
+        await createAdminNotification({
+            title: "New User",
+            message: `${user.username} joined`,
+            type: "USER",
         });
 
         res.json({

@@ -16,6 +16,7 @@ import {
 import {
   useAdminOrders,
   useUpdateOrderStatus,
+  useUpdateOrderPaymentStatus
 } from "../../../../hooks/admin/useAdminOrders";
 
 const Orders = () => {
@@ -24,6 +25,7 @@ const Orders = () => {
 
   const updateStatus =
     useUpdateOrderStatus();
+  const updatePayment = useUpdateOrderPaymentStatus();
 
   const [page, setPage] =
     useState(1);
@@ -55,7 +57,14 @@ const Orders = () => {
     {
       header: "Order",
       render: (row: any) => (
-        <div>
+        <div
+          className="cursor-pointer"
+          onClick={() =>
+            navigate(
+              `/admin/ecommerce/orders/${row.id}`
+            )
+          }
+        >
           <p className="font-semibold">
             #{row.id}
           </p>
@@ -78,40 +87,117 @@ const Orders = () => {
     {
       header: "Status",
       render: (row: any) => (
-        <select
-          value={
-            row.status
-          }
-          onChange={(
-            e
-          ) =>
-            updateStatus.mutate(
-              {
-                id: row.id,
-                status:
-                  e.target
-                    .value,
-              }
-            )
-          }
-          className="border px-2 py-1 rounded-lg text-sm"
-        >
-          {[
-            "PENDING",
-            "PAID",
-            "SHIPPED",
-            "DELIVERED",
-            "CANCELLED",
-          ].map((s) => (
-            <option
-              key={s}
-              value={s}
+        row.status === "CANCELLED" ? (
+          <span
+            className={`text-sm font-medium ${row.status === "CANCELLED" ? "text-red-600" : "text-green-600"}`}
+          >
+            {row.status}
+          </span>
+        ) :
+          row.status === "DELIVERED" && row.payment?.status === "SUCCESS" ? (
+            <span
+              className={`text-sm font-medium ${row.status === "DELIVERED" && row.payment?.status === "SUCCESS" ? "text-green-600" : "text-orange-600"}`}
             >
-              {s}
-            </option>
-          ))}
-        </select>
-      ),
+              {row.status}
+            </span>
+          ) : (
+            <select
+              value={
+                row.status
+              }
+              onChange={(
+                e
+              ) =>
+                updateStatus.mutate(
+                  {
+                    id: row.id,
+                    status:
+                      e.target
+                        .value,
+                  }
+                )
+              }
+              className="border px-2 py-1 rounded-lg text-sm"
+            >
+              {[
+                "PENDING",
+                "SHIPPED",
+                "DELIVERED",
+                "CANCELLED",
+              ].map((s) => (
+                <option
+                  key={s}
+                  value={s}
+                >
+                  {s}
+                </option>
+              ))}
+            </select>
+          ))
+    },
+
+    {
+      header: "Payment",
+      render: (row: any) => {
+        const isCOD =
+          row.payment?.provider === "COD";
+
+        const isPaid =
+          row.payment?.status === "SUCCESS";
+        
+        const isCancelled = 
+          row.status === "CANCELLED";
+
+        if (!isCOD) {
+          return (
+            <div>
+              <p className="font-medium text-green-600">
+                Razorpay
+              </p>
+
+              <p className="text-xs text-gray-500">
+                Paid Online
+              </p>
+            </div>
+          );
+        }
+
+        return (
+          <div className="flex flex-col gap-2">
+            <span
+              className={`text-sm font-medium ${isPaid
+                ? "text-green-600"
+                : isCancelled
+                  ? "text-red-600"
+                  : "text-orange-600"
+                }`}
+            >
+              {isPaid
+                ? "Paid"
+                : isCancelled
+                  ? "Cancelled"
+                  : "COD"}
+            </span>
+
+            {!isPaid &&
+              row.status ===
+              "DELIVERED" && (
+                <button
+                  onClick={() =>
+                    updatePayment.mutate({
+                      id: row.id,
+                      status:
+                        "SUCCESS",
+                    })
+                  }
+                  className="bg-green-600 text-white px-3 py-1 rounded-lg text-xs"
+                >
+                  Mark as Paid
+                </button>
+              )}
+          </div>
+        );
+      },
     },
 
     {

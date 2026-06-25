@@ -45,6 +45,15 @@ enum NotificationType {
   SYSTEM
 }
 
+enum AdminNotificationType {
+  ORDER
+  PAYMENT
+  LOW_STOCK
+  USER
+  DRIVER
+  SYSTEM
+}
+
 model User {
   id       Int    @id @default(autoincrement())
   username String
@@ -97,6 +106,9 @@ model Order {
   total  Float
 
   status OrderStatus @default(PENDING)
+
+  addressId Int?
+  address   Address? @relation(fields: [addressId], references: [id])
 
   createdAt DateTime @default(now())
 
@@ -291,6 +303,11 @@ model Address {
   zipCode  String
 
   isDefault Boolean @default(false)
+
+  orders Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Review {
@@ -317,6 +334,21 @@ model RefreshToken {
   expiresAt DateTime
 
   @@index([userId])
+}
+
+model AdminNotification {
+  id Int @id @default(autoincrement())
+
+  title   String
+  message String
+
+  type AdminNotificationType
+
+  isRead Boolean @default(false)
+
+  link String?
+
+  createdAt DateTime @default(now())
 }
 
 //Todo

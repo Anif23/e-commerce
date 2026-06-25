@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, use } from "react";
 import {
   Search,
   Heart,
@@ -47,6 +47,30 @@ const UserHeader = () => {
 
   const [showNotifications, setShowNotifications] =
     useState(false);
+
+  const profileRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        profileRef.current &&
+        !profileRef.current.contains(event.target as Node)
+      ) {
+        setProfileOpen(false);
+      }
+
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const params =
     new URLSearchParams(
@@ -188,7 +212,7 @@ const UserHeader = () => {
         .logout();
 
       window.location.href =
-        "/login";
+        "/";
     }
   };
 
@@ -297,14 +321,14 @@ const UserHeader = () => {
 
             {/* PROFILE */}
             {token ? (
-              <div className="relative hidden md:block">
+              <div ref={profileRef} className="relative hidden md:block">
                 <button
                   onClick={() =>
                     setProfileOpen(
                       !profileOpen
                     )
                   }
-                  className="w-10 h-10 rounded-full bg-black text-white font-semibold flex items-center justify-center"
+                  className="w-10 h-10 rounded-full bg-black text-white font-semibold flex items-center justify-center cursor-pointer"
                 >
                   {profile?.username?.charAt(
                     0
@@ -377,10 +401,12 @@ const UserHeader = () => {
 
       {/* MOBILE SIDEBAR */}
       <div
-        className={`fixed top-0 right-0 h-full w-80 bg-white z-50 shadow-2xl transition-transform duration-300 ${open
+        className={`fixed top-0 right-0 h-full w-80 bg-white z-50 shadow-2xl transition-transform duration-300 md:hidden
+          ${open
           ? "translate-x-0"
           : "translate-x-full"
           }`}
+        ref={menuRef}
       >
         <div className="h-16 px-4 border-b flex items-center justify-between">
           <h2 className="font-semibold">

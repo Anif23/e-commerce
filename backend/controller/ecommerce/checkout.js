@@ -2,6 +2,7 @@ import { prisma } from "../../config/prisma.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiError } from "../../utils/apiError.js";
 import { checkoutSchema } from "../../validations/ecommerce.js";
+import { createAdminNotification } from "../../utils/AdminNotification.js";
 
 export const checkoutController = {
 
@@ -16,6 +17,17 @@ export const checkoutController = {
         }
       }
     });
+    
+    const address = await prisma.address.findFirst({
+      where: {
+        userId: req.user.id,
+        isDefault: true
+      }
+    });
+
+    if (!address) {
+      throw new ApiError(400, "Please set a default address before checkout");
+    }
 
     if (!cart || cart.items.length === 0) {
       throw new ApiError(400, "Cart is empty");
@@ -36,6 +48,7 @@ export const checkoutController = {
       data: {
         userId: req.user.id,
         total,
+        addressId: address.id,
         items: {
           create: cart.items.map(item => ({
             productId: item.productId,
@@ -77,8 +90,17 @@ export const checkoutController = {
       data: {
         orderId: order.id,
         amount: total,
-        provider: paymentMethod
+        provider: paymentMethod,
+        status: paymentMethod === "RAZORPAY" ? "SUCCESS" : "PENDING",
+        paymentId: paymentMethod === "RAZORPAY" ? `RAZORPAY-${Date.now()}` : null
       }
+    });
+
+    await createAdminNotification({
+      title: "New Order",
+      message: `Order #${order.id} created`,
+      type: "ORDER",
+      link: `/admin/ecommerce/orders/${order.id}`,
     });
 
     res.json({

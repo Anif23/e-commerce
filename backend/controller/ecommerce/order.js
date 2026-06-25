@@ -17,7 +17,7 @@ export const orderController = {
                         }
                     }
                 },
-                payment: true
+                payment: true,
             },
             orderBy: { createdAt: "desc" }
         });

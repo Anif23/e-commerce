@@ -34,4 +34,10 @@ export const userAPI = {
   markAllNotificationRead: () => api.put("/notifications/read-all"),
   deleteNotification: (id: number) => api.delete(`/notifications/${id}`),
   deleteAllNotifications: () => api.delete("/notifications/delete-all"),
+
+  addresses: () => api.get("/addresses"),
+  addAddress: (data: any) => api.post("/addresses", data),
+  updateAddress: (id: number, data: any) => api.put(`/addresses/${id}`, data),
+  deleteAddress: (id: number) => api.delete(`/addresses/${id}`),
+  setDefaultAddress: (id: number) => api.patch(`/addresses/${id}/default`),
 };

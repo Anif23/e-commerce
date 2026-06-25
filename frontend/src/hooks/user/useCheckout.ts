@@ -1,47 +1,37 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { userAPI } from "../../api/user";
 import toast from "react-hot-toast";
+import { userAPI } from "../../api/user";
 import { qk } from "../../utils/queryKeys";
 import { getErrorMessage } from "../../utils/getErrorMessage";
 
-
 export const useCheckout = () => {
-
-  const qc =
-    useQueryClient();
+  const qc = useQueryClient();
 
   return useMutation({
+    mutationFn: (data: any) => userAPI.checkout(data),
 
-    mutationFn:
-      (data: any) =>
-        userAPI.checkout(data),
+    onSuccess: async () => {
+      toast.success("Checkout successful");
 
-    onSuccess:
-      async () => {
+      qc.setQueryData([qk.cart], (old: any) => ({
+        ...old,
+        items: [],
+        total: 0,
+      }));
 
-        toast.success(
-          "Checkout successful"
-        );
+      await Promise.all([
+        qc.invalidateQueries({
+          queryKey: [qk.cart],
+        }),
 
-        qc.setQueryData(
-          qk.cart,
-          {
-            items: [],
-          }
-        );
+        qc.invalidateQueries({
+          queryKey: [qk.orders],
+        }),
+      ]);
+    },
 
-        await qc.refetchQueries({
-          queryKey:
-            qk.orders,
-        });
-      },
-
-    onError:
-      (err: any) => {
-
-        toast.error(
-          getErrorMessage(err)
-        );
-      },
+    onError: (err: any) => {
+      toast.error(getErrorMessage(err));
+    },
   });
 };

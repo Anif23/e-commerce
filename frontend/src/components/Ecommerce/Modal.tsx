@@ -13,12 +13,21 @@ const Modal = ({
   title,
   children,
 }: Props) => {
+
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-100 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+    >
 
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div
+        onClick={(e) =>
+          e.stopPropagation()
+        }
+        className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+      >
 
         {/* HEADER */}
         <div className="h-16 px-5 border-b flex items-center justify-between">
@@ -42,6 +51,7 @@ const Modal = ({
         </div>
 
       </div>
+
     </div>
   );
 };

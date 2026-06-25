@@ -52,6 +52,8 @@ const CategoryForm = () => {
     setPreview([URL.createObjectURL(file)]);
   };
 
+  console.log("preview", preview);
+
   const removeImage = () => {
     setImage(null);
     setPreview([]);
