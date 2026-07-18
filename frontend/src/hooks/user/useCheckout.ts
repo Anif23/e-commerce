@@ -11,8 +11,6 @@ export const useCheckout = () => {
     mutationFn: (data: any) => userAPI.checkout(data),
 
     onSuccess: async () => {
-      toast.success("Checkout successful");
-
       qc.setQueryData([qk.cart], (old: any) => ({
         ...old,
         items: [],

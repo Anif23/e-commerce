@@ -10,6 +10,7 @@ import { optionalAuth } from "../../middleware/optionalAuth.js";
 import { profileController } from "../../controller/ecommerce/profile.js";
 import { notificationController } from "../../controller/ecommerce/notification.js";
 import { addressController } from "../../controller/ecommerce/address.js";
+import { paymentController } from "../../controller/ecommerce/payment.js";
 
 export const userRoutes = (app) => {
   app.get("/products", optionalAuth, productController.getProducts);
@@ -98,4 +99,29 @@ export const userRoutes = (app) => {
     authMiddleware,
     addressController.setDefaultAddress
   );
+
+  app.post(
+    "/paypal/create",
+    authMiddleware,
+    paymentController.createPaypalOrder
+  );
+
+  app.post(
+    "/paypal/capture",
+    authMiddleware,
+    paymentController.capturePaypalOrder
+  );
+
+  app.post(
+    "/orders/:id/cancel",
+    authMiddleware,
+    orderController.cancelOrder
+  );
+
+  app.post(
+    "/orders/:id/expire",
+    authMiddleware,
+    orderController.expireOrder
+  );
+
 }

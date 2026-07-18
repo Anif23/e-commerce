@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminAPI } from "../../api/admin";
 import toast from "react-hot-toast";
 import { qk } from "../../utils/queryKeys";
+import { useEffect } from "react";
+import { socket } from "../../lib/socket";
 
 export const useAdminOrders = (params: any) =>
   useQuery({
@@ -59,4 +61,20 @@ export const useUpdateOrderPaymentStatus = () => {
       toast.error(err?.response?.data?.message || "Failed");
     },
   });
-}
+};
+
+export const useRealtimeAdminOrders = () => {
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    socket.on("order_updated", () => {
+      qc.invalidateQueries({
+        queryKey: [qk.adminOrders],
+      });
+    });
+
+    return () => {
+      socket.off("order_updated");
+    }
+  }, [qc]);
+};

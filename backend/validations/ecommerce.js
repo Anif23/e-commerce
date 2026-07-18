@@ -28,5 +28,5 @@ export const cartSchema = z.object({
 });
 
 export const checkoutSchema = z.object({
-  paymentMethod: z.enum(["COD", "RAZORPAY"]),
+  paymentMethod: z.enum(["COD", "PAYPAL"]),
 });

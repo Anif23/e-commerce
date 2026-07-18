@@ -20,7 +20,7 @@ export const createAdminNotification =
       });
 
     io.emit(
-      "admin_notification",
+      "admin_notificaton",
       notification
     );
 

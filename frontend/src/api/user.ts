@@ -40,4 +40,10 @@ export const userAPI = {
   updateAddress: (id: number, data: any) => api.put(`/addresses/${id}`, data),
   deleteAddress: (id: number) => api.delete(`/addresses/${id}`),
   setDefaultAddress: (id: number) => api.patch(`/addresses/${id}/default`),
+
+  createPaypalOrder: (data: any) => api.post("/paypal/create", data),
+  capturePaypalOrder: (data: any) => api.post("/paypal/capture", data),
+
+  cancelOrder: (id: number) => api.post(`/orders/${id}/cancel`),
+  expireOrder: (id: number) => api.post(`/orders/${id}/expire`),
 };

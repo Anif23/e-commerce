@@ -4,6 +4,8 @@ import {
 } from "react-router-dom";
 
 import {
+  useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -14,7 +16,10 @@ import {
   Bell,
   Search,
   User,
+  LogOut,
+  Settings
 } from "lucide-react";
+import { useAuthStore } from "../../../store/authStore";
 
 import NotificationModal from "../NotificationModal";
 
@@ -22,6 +27,8 @@ import {
   useNotifications,
   useRealtimeNotifications,
 } from "../../../hooks/admin/useAdminNotifications";
+
+import { useRealtimeAdminOrders } from "../../../hooks/admin/useAdminOrders";
 
 const AdminLayout = () => {
 
@@ -39,7 +46,14 @@ const AdminLayout = () => {
   const [search, setSearch] =
     useState("");
 
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  const logout = useAuthStore((s) => s.logout);
+
   useRealtimeNotifications();
+  useRealtimeAdminOrders();
 
   const {
     data: notifications = [],
@@ -73,6 +87,25 @@ const AdminLayout = () => {
         : `/admin/ecommerce/products?search=${value}`
     );
   };
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        profileRef.current &&
+        !profileRef.current.contains(e.target as Node)
+      ) {
+        setShowProfileMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () =>
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside
+      );
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#f8f9fb] flex">
@@ -183,9 +216,46 @@ const AdminLayout = () => {
               </button>
 
               {/* PROFILE */}
-              <button className="w-11 h-11 rounded-2xl bg-black text-white flex items-center justify-center">
-                <User size={18} />
-              </button>
+              <div className="relative" ref={profileRef}>
+
+                <button
+                  onClick={() =>
+                    setShowProfileMenu((prev) => !prev)
+                  }
+                  className="w-11 h-11 rounded-2xl bg-black text-white flex items-center justify-center"
+                >
+                  <User size={18} />
+                </button>
+
+                {showProfileMenu && (
+                  <div className="absolute right-0 mt-3 w-52 rounded-2xl border bg-white shadow-xl overflow-hidden">
+
+                    <button
+                      onClick={() => {
+                        setShowProfileMenu(false);
+                        navigate("/admin/ecommerce/profile");
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-100 text-sm"
+                    >
+                      <Settings size={17} />
+                      Profile
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        logout();
+                        navigate("/login");
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-50 text-red-600 text-sm"
+                    >
+                      <LogOut size={17} />
+                      Logout
+                    </button>
+
+                  </div>
+                )}
+
+              </div>
 
             </div>
 
@@ -206,14 +276,9 @@ const AdminLayout = () => {
 
       {/* NOTIFICATIONS */}
       <NotificationModal
-        open={
-          showNotifications
-        }
-        onClose={() =>
-          setShowNotifications(
-            false
-          )
-        }
+        open={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        type="admin"
       />
 
     </div>

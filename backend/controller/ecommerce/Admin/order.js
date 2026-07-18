@@ -3,6 +3,8 @@ import { asyncHandler } from "../../../utils/AsyncHandler.js";
 import { ApiError } from "../../../utils/ApiError.js";
 import { getPagination, getMeta } from "../../../utils/pagination.js";
 import { searchBy } from "../../../utils/common.js";
+import { createUserNotification } from "../../../utils/UserNotification.js";
+import { io } from "../../../index.js";
 
 export const adminOrderController = {
 
@@ -107,21 +109,31 @@ export const adminOrderController = {
     }),
 
     updateOrderStatus: asyncHandler(async (req, res) => {
-        const orderId = Number(req.params.id);
-        const status = req.body?.status;
 
-        if (!status || status.toString().trim() === "") {
-            throw new ApiError(400, "Please give a status to update");
+        const orderId = Number(req.params.id);
+        const { status } = req.body;
+
+        if (!status) {
+            throw new ApiError(400, "Status is required");
         }
 
-        const validStatus = ["PENDING", "SHIPPED", "DELIVERED", "CANCELLED"];
+        const validStatus = [
+            "PENDING_PAYMENT",
+            "PAID",
+            "PROCESSING",
+            "SHIPPED",
+            "DELIVERED",
+            "CANCELLED",
+        ];
 
         if (!validStatus.includes(status)) {
             throw new ApiError(400, "Invalid status");
         }
 
         const order = await prisma.order.findUnique({
-            where: { id: orderId }
+            where: {
+                id: orderId,
+            },
         });
 
         if (!order) {
@@ -129,13 +141,35 @@ export const adminOrderController = {
         }
 
         const allowedTransitions = {
-            PENDING: ["SHIPPED", "CANCELLED"],
-            SHIPPED: ["DELIVERED"],
+
+            PENDING_PAYMENT: [
+                "PAID",
+                "PROCESSING",
+                "CANCELLED",
+            ],
+
+            PAID: [
+                "PROCESSING",
+                "CANCELLED",
+            ],
+
+            PROCESSING: [
+                "SHIPPED",
+                "CANCELLED",
+            ],
+
+            SHIPPED: [
+                "DELIVERED",
+            ],
+
             DELIVERED: [],
-            CANCELLED: []
+
+            CANCELLED: [],
         };
 
-        if (!allowedTransitions[order.status].includes(status)) {
+        if (
+            !allowedTransitions[order.status].includes(status)
+        ) {
             throw new ApiError(
                 400,
                 `Cannot change status from ${order.status} to ${status}`
@@ -143,15 +177,41 @@ export const adminOrderController = {
         }
 
         const updated = await prisma.order.update({
-            where: { id: orderId },
-            data: { status }
+            where: {
+                id: orderId,
+            },
+            data: {
+                status,
+            },
+        });
+
+        // If order marked as PAID, mark related payment as SUCCESS
+        if (status === "PAID") {
+            await prisma.payment.updateMany({
+                where: { orderId: orderId },
+                data: { status: "SUCCESS" },
+            });
+        }
+
+        await createUserNotification({
+            title: "Order Updated",
+            message: `Order #${updated.id} status updated to ${updated.status}`,
+            type: "ORDER",
+            link: `/user/ecommerce/orders/${updated.id}`,
+            userId: updated.userId,
+        });
+
+        io.emit("user_order_updated", {
+            type: "UPDATED",
+            orderId: updated.id,
         });
 
         res.json({
             success: true,
             message: "Order status updated",
-            data: updated
+            data: updated,
         });
+
     }),
 
     updatePaymentStatus: asyncHandler(async (req, res) => {

@@ -9,43 +9,40 @@ import {
 
 import Modal from "./Modal";
 
-import {
-  useNotifications,
-  useMarkNotificationRead,
-  useMarkAllNotificationRead,
-  useDeleteNotification,
-  useDeleteAllNotifications,
-} from "../../hooks/admin/useAdminNotifications";
+import * as adminHooks from "../../hooks/admin/useAdminNotifications";
+import * as userHooks from "../../hooks/user/useNotifications";
 
 import { useNavigate } from "react-router-dom";
 
 type Props = {
   open: boolean;
   onClose: () => void;
+  type: "admin" | "user";
 };
 
 const NotificationModal = ({
   open,
   onClose,
+  type
 }: Props) => {
 
   const navigate =
     useNavigate();
 
-  const { data = [] } =
-    useNotifications();
+  const hooks =
+    type === "admin"
+      ? adminHooks
+      : userHooks;
 
-  const markRead =
-    useMarkNotificationRead();
+  const { data = [] } = hooks.useNotifications();
 
-  const markAllRead =
-    useMarkAllNotificationRead();
+  const markRead = hooks.useMarkNotificationRead();
 
-  const deleteOne =
-    useDeleteNotification();
+  const markAllRead = hooks.useMarkAllNotificationRead();
 
-  const deleteAll =
-    useDeleteAllNotifications();
+  const deleteOne = hooks.useDeleteNotification();
+
+  const deleteAll = hooks.useDeleteAllNotifications();
 
   const unread =
     data.filter(
@@ -160,7 +157,7 @@ const NotificationModal = ({
         </div>
 
         {/* LIST */}
-        <div className="space-y-3 max-h-[500px] overflow-y-auto">
+        <div className="space-y-3 max-h-125 overflow-y-auto">
 
           {data.length ? (
             data.map(

@@ -1,38 +1,86 @@
 import { useCart, useRemoveCart, useUpdateCart } from "../../../../hooks/user/useCart";
 import { useCheckout } from "../../../../hooks/user/useCheckout";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuthStore } from "../../../../store/authStore";
 import { useCartStore } from "../../../../store/cartStore";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAddresses } from "../../../../hooks/user/useAddresses";
 import { toast } from "react-hot-toast";
+import PaypalButton from "../../../../components/Ecommerce/User/PaypalButton";
+import { useCancelOrder, useExpireOrder } from "../../../../hooks/user/useOrders";
 
 const CartPage = () => {
 
     const navigate = useNavigate();
     const location = useLocation();
-    const { isLoading } = useCart();
-    const token = useAuthStore((s) => s.token);
+
+    const {
+        data,
+        isLoading
+    } = useCart();
+
+    const cart = data?.cart;
+    const pendingOrder = data?.existingOrder;
 
     const cartStore = useCartStore();
 
-    const items = cartStore.items;
+    const items = cart?.items ?? cartStore.items;
+
+    const token = useAuthStore((s) => s.token);
 
     const updateCart = useUpdateCart();
     const removeCart = useRemoveCart();
-
     const checkout = useCheckout();
+    const cancelOrder = useCancelOrder();
 
-    const { data: addresses = [] } =
-        useAddresses();
+    const expireOrder = useExpireOrder();
 
-    const defaultAddress =
-        addresses.find(
-            (a: any) => a.isDefault
-        );
+    const { data: addresses = [] } = useAddresses();
 
+    const defaultAddress = addresses.find((a: any) => a.isDefault);
 
-    const [paymentMethod, setPaymentMethod] = useState<"COD" | "RAZORPAY">("COD");
+    const isPaypalLocked =
+        pendingOrder?.payment?.provider === "PAYPAL";
+
+    const [paymentMethod, setPaymentMethod] = useState<"COD" | "PAYPAL">(isPaypalLocked ? "PAYPAL" : "COD");
+
+    const [timeLeft, setTimeLeft] = useState(0);
+
+    useEffect(() => {
+        if (!pendingOrder?.expiresAt) {
+            setTimeLeft(0);
+            return;
+        }
+
+        const update = () => {
+            const remaining =
+                new Date(pendingOrder.expiresAt).getTime() - Date.now();
+
+            if (remaining <= 0) {
+                clearInterval(timer);
+
+                expireOrder.mutate(pendingOrder.id, {
+                    onSuccess: () => {
+                        toast.error("Payment session expired");
+                    },
+                });
+
+                return;
+            }
+
+            setTimeLeft(remaining);
+        };
+
+        update();
+
+        const timer = setInterval(update, 1000);
+
+        return () => clearInterval(timer);
+
+    }, [pendingOrder?.id]);
+
+    const minutes = Math.floor(timeLeft / 60000);
+    const seconds = Math.floor((timeLeft % 60000) / 1000);
 
     if (isLoading) {
         return <div className="text-center mt-10">Loading cart...</div>;
@@ -80,59 +128,81 @@ const CartPage = () => {
         }
     };
 
-    const handleCheckout =
-        () => {
-
-            if (!token) {
-
-                navigate("/login", {
-                    state: {
-                        from:
-                            location.pathname,
-                    },
-                });
-
-                return;
-            }
-
-            if (!addresses.length) {
-
-                toast.error(
-                    "Please add delivery address"
-                );
-
-                navigate(
-                    "/user/ecommerce/profile"
-                );
-
-                return;
-            }
-
-            if (!defaultAddress) {
-
-                toast.error(
-                    "Please select default address"
-                );
-
-                navigate(
-                    "/user/ecommerce/profile"
-                );
-
-                return;
-            }
-
-            checkout.mutate({
-                paymentMethod,
-                addressId:
-                    defaultAddress.id,
+    const handleCheckout = () => {
+        if (!token) {
+            navigate("/login", {
+                state: {
+                    from: location.pathname,
+                },
             });
-        };
+            return;
+        }
+
+        if (!addresses.length) {
+            toast.error("Please add a delivery address");
+            navigate("/user/ecommerce/profile");
+            return;
+        }
+
+        if (!defaultAddress) {
+            toast.error("Please select a default address");
+            navigate("/user/ecommerce/profile");
+            return;
+        }
+
+        checkout.mutate(
+            {
+                addressId: defaultAddress.id,
+                paymentMethod,
+            },
+            {
+                onSuccess: () => {
+                    if (paymentMethod === "COD") {
+                        toast.success("Order placed successfully");
+                        navigate("/user/ecommerce/orders");
+                        return;
+                    }
+
+                    toast.success(
+                        "Order created. Complete your PayPal payment."
+                    );
+                },
+
+                onError: (error: any) => {
+                    toast.error(
+                        error?.response?.data?.message ??
+                        "Checkout failed"
+                    );
+                },
+            }
+        );
+    };
 
     return (
         <div className="max-w-7xl mx-auto px-4 py-8">
             <h1 className="text-3xl font-bold mb-8">
                 Shopping Cart
             </h1>
+
+            {isPaypalLocked && (
+                <div className="mb-6 rounded-2xl border border-yellow-300 bg-yellow-50 p-5 flex justify-between items-center">
+
+                    <div>
+                        <h3 className="font-semibold">
+                            Payment Pending
+                        </h3>
+
+                        <p className="text-sm text-gray-600">
+                            Complete your PayPal payment before the order expires.
+                        </p>
+                    </div>
+
+                    <span className="text-2xl font-bold text-red-600">
+                        {minutes}:{String(seconds).padStart(2, "0")}
+                    </span>
+
+                </div>
+            )}
 
             {!items.length ? (
                 <div className="bg-white rounded-2xl shadow-sm border p-14 text-center">
@@ -181,56 +251,64 @@ const CartPage = () => {
                                     </h2>
 
                                     <p className="text-gray-500 text-sm mt-1">
-                                        ₹{item.product.price}
+                                        ${item.product.price}
                                     </p>
 
-                                    <div className="flex items-center gap-3 mt-4">
-                                        <button
-                                            onClick={() =>
-                                                handleUpdate(
-                                                    item,
-                                                    "dec"
-                                                )
-                                            }
-                                            className="w-8 h-8 rounded-lg border"
-                                        >
-                                            -
-                                        </button>
+                                    {isPaypalLocked ? (
+                                        <p className="text-sm text-gray-500 mt-4">
+                                            Qty: {item.quantity}
+                                        </p>
+                                    ) : (
+                                        <div className="flex items-center gap-3 mt-4">
+                                            <button
+                                                onClick={() =>
+                                                    handleUpdate(
+                                                        item,
+                                                        "dec"
+                                                    )
+                                                }
+                                                className="w-8 h-8 rounded-lg border"
+                                            >
+                                                -
+                                            </button>
 
-                                        <span className="font-medium">
-                                            {item.quantity}
-                                        </span>
+                                            <span className="font-medium">
+                                                {item.quantity}
+                                            </span>
 
-                                        <button
-                                            onClick={() =>
-                                                handleUpdate(
-                                                    item,
-                                                    "inc"
-                                                )
-                                            }
-                                            className="w-8 h-8 rounded-lg border"
-                                        >
-                                            +
-                                        </button>
-                                    </div>
+                                            <button
+                                                onClick={() =>
+                                                    handleUpdate(
+                                                        item,
+                                                        "inc"
+                                                    )
+                                                }
+                                                className="w-8 h-8 rounded-lg border"
+                                            >
+                                                +
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
 
-                                <div className="flex flex-col justify-between items-end">
-                                    <button
-                                        onClick={() =>
-                                            handleRemove(item)
-                                        }
-                                        className="text-sm text-red-500"
-                                    >
-                                        Remove
-                                    </button>
+                                {!isPaypalLocked && (
+                                    <div className="flex flex-col justify-between items-end">
+                                        <button
+                                            onClick={() =>
+                                                handleRemove(item)
+                                            }
+                                            className="text-sm text-red-500"
+                                        >
+                                            Remove
+                                        </button>
 
-                                    <div className="font-bold text-lg">
-                                        ₹
-                                        {item.product.price *
-                                            item.quantity}
+                                        <div className="font-bold text-lg">
+                                            $
+                                            {item.product.price *
+                                                item.quantity}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -278,6 +356,7 @@ const CartPage = () => {
                             ) : (
 
                                 <button
+                                    disabled={isPaypalLocked}
                                     onClick={() =>
                                         navigate(
                                             "/user/ecommerce/profile"
@@ -306,7 +385,7 @@ const CartPage = () => {
                                     </span>
 
                                     <span>
-                                        ₹{total}
+                                        ${total}
                                     </span>
                                 </div>
 
@@ -322,7 +401,7 @@ const CartPage = () => {
                                     <span>Total</span>
 
                                     <span>
-                                        ₹{total}
+                                        ${total}
                                     </span>
                                 </div>
                             </div>
@@ -337,6 +416,7 @@ const CartPage = () => {
                                     <label className="border rounded-xl p-4 flex items-center gap-3 cursor-pointer">
                                         <input
                                             type="radio"
+                                            disabled={isPaypalLocked}
                                             checked={
                                                 paymentMethod ===
                                                 "COD"
@@ -356,35 +436,66 @@ const CartPage = () => {
                                     <label className="border rounded-xl p-4 flex items-center gap-3 cursor-pointer">
                                         <input
                                             type="radio"
-                                            checked={
-                                                paymentMethod ===
-                                                "RAZORPAY"
-                                            }
+                                            disabled={isPaypalLocked}
+                                            checked={paymentMethod === "PAYPAL"}
                                             onChange={() =>
                                                 setPaymentMethod(
-                                                    "RAZORPAY"
+                                                    "PAYPAL"
                                                 )
                                             }
                                         />
 
                                         <span>
-                                            Razorpay
+                                            PayPal
                                         </span>
                                     </label>
                                 </div>
                             </div>
 
-                            <button
-                                onClick={handleCheckout}
-                                disabled={
-                                    checkout.isPending
-                                }
-                                className="w-full bg-black text-white py-3 rounded-xl mt-8 disabled:opacity-50"
-                            >
-                                {checkout.isPending
-                                    ? "Processing..."
-                                    : "Proceed to Checkout"}
-                            </button>
+                            {!isPaypalLocked ? (
+
+                                <button
+                                    onClick={handleCheckout}
+                                    disabled={checkout.isPending}
+                                    className="w-full bg-black text-white py-3 rounded-xl mt-8 disabled:opacity-50"
+                                >
+                                    {checkout.isPending
+                                        ? "Processing..."
+                                        : "Proceed to Checkout"}
+                                </button>
+
+                            ) : (
+
+                                <div className="space-y-4 mt-8">
+
+                                    <div className="rounded-xl bg-yellow-50 border border-yellow-300 p-4 text-sm">
+
+                                        Your order has been created.
+
+                                        Complete your PayPal payment or cancel this order.
+
+                                    </div>
+
+                                    <PaypalButton orderId={pendingOrder.id} />
+
+                                    <button
+                                        onClick={() => {
+
+                                            cancelOrder.mutate(pendingOrder.id, {
+                                                onSuccess: () => {
+                                                    toast.success("Order cancelled");
+                                                }
+                                            });
+
+                                        }}
+                                        className="w-full py-3 rounded-xl border border-red-500 text-red-600 hover:bg-red-50"
+                                    >
+                                        Cancel Order
+                                    </button>
+
+                                </div>
+
+                            )}
                         </div>
                     </div>
                 </div>

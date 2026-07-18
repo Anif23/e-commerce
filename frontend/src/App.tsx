@@ -31,6 +31,7 @@ import OrdersPage from "./pages/ECommerce/Admin/Orders/Page";
 import CustomersPage from "./pages/ECommerce/Admin/Customers/Page";
 import CampaignsPage from "./pages/ECommerce/Admin/Campaigns/Page";
 import { useEffect } from "react";
+import AdminProfile from "./pages/ECommerce/Admin/Profile/Page";
 
 function App() {
 
@@ -90,6 +91,7 @@ function App() {
               <Route path="orders/:id" element={<AdminOrderDetail />} />
               <Route path="customers" element={<CustomersPage />} />
               <Route path="campaigns" element={<CampaignsPage />} />
+              <Route path="profile" element={<AdminProfile />} />
             </Route>
           </Route>
 

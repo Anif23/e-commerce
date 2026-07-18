@@ -9,7 +9,8 @@ export const qk = {
   useProfile: ["user-profile"],
   notifications: ["user-notifications"],
   addresses: ["user-addresses"],
-
+  paypalOrder: ["paypal-order"],
+  
   adminDashboard: ["admin-dasboard"],
   adminProducts: ["admin-products"],
   adminCategories: ["admin-categories"],

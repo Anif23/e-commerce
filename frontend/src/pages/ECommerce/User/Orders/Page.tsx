@@ -1,17 +1,17 @@
-// pages/ECommerce/User/Orders/Page.tsx
-
 import { useNavigate } from "react-router-dom";
 import { useOrders } from "../../../../hooks/user/useOrders";
 
 const statusColors: any = {
-  PENDING: "bg-yellow-100 text-yellow-600",
+  PENDING_PAYMENT: "bg-yellow-100 text-yellow-600",
   PAID: "bg-blue-100 text-blue-600",
+  PROCESSING: "bg-indigo-100 text-indigo-600",
   SHIPPED: "bg-purple-100 text-purple-600",
   DELIVERED: "bg-green-100 text-green-600",
   CANCELLED: "bg-red-100 text-red-600",
 };
 
 const UserOrders = () => {
+
   const navigate = useNavigate();
   const { data: orders = [], isLoading } = useOrders();
 
@@ -61,7 +61,7 @@ const UserOrders = () => {
               {/* TOTAL */}
               <div className="text-right">
                 <p className="text-sm text-gray-500">Total</p>
-                <p className="font-bold text-lg">₹{order.total}</p>
+                <p className="font-bold text-lg">${order.total}</p>
               </div>
             </div>
 

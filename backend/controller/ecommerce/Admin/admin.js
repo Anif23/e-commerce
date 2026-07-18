@@ -47,7 +47,7 @@ export const adminController = {
 
             prisma.order.count({
                 where: {
-                    status: "PENDING",
+                    status: "PROCESSING",
                 },
             }),
 

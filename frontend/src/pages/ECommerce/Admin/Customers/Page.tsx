@@ -82,7 +82,7 @@ const Customers = () => {
       header: "Spent",
 
       render: (row: any) =>
-        `₹${row.totalSpent}`,
+        `${row.totalSpent}`,
     },
 
     {
@@ -149,7 +149,7 @@ const Customers = () => {
 
         <StatsCard
           title="Revenue"
-          value={`₹${customers.reduce(
+          value={`${customers.reduce(
             (
               acc: number,
               item: any

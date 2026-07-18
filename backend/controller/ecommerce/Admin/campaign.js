@@ -34,7 +34,7 @@ export const campaignController = {
                     if (socketId) {
 
                         io.to(socketId).emit(
-                            "new_notification",
+                            "admin_notificaton",
                             notification
                         );
                     }
@@ -65,7 +65,7 @@ export const campaignController = {
                     });
 
                 io.emit(
-                    "new_notification",
+                    "admin_notificaton",
                     {
                         title,
                         message,

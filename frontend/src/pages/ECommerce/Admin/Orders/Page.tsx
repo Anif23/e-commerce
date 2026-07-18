@@ -53,6 +53,15 @@ const Orders = () => {
     data?.pagination ||
     {};
 
+  const statusOptions = [
+    "PENDING_PAYMENT",
+    "PAID",
+    "PROCESSING",
+    "SHIPPED",
+    "DELIVERED",
+    "CANCELLED",
+  ];
+
   const columns = [
     {
       header: "Order",
@@ -81,86 +90,59 @@ const Orders = () => {
     {
       header: "Amount",
       render: (row: any) =>
-        `₹${row.total}`,
+        `$${row.total.toLocaleString()}`,
     },
 
     {
       header: "Status",
-      render: (row: any) => (
-        row.status === "CANCELLED" ? (
-          <span
-            className={`text-sm font-medium ${row.status === "CANCELLED" ? "text-red-600" : "text-green-600"}`}
-          >
-            {row.status}
-          </span>
-        ) :
-          row.status === "DELIVERED" && row.payment?.status === "SUCCESS" ? (
+      render: (row: any) => {
+        const isCancelled = row.status === "CANCELLED";
+        const isDelivered = row.status === "DELIVERED";
+        const isExpired = row.status === "EXPIRED";
+
+        if (isCancelled || isDelivered || isExpired) {
+          return (
             <span
-              className={`text-sm font-medium ${row.status === "DELIVERED" && row.payment?.status === "SUCCESS" ? "text-green-600" : "text-orange-600"}`}
+              className={`text-sm font-medium ${isCancelled ? "text-red-600" : isExpired ? "text-yellow-600" : "text-green-600"}`}
             >
               {row.status}
             </span>
-          ) : (
-            <select
-              value={
-                row.status
-              }
-              onChange={(
-                e
-              ) =>
-                updateStatus.mutate(
-                  {
-                    id: row.id,
-                    status:
-                      e.target
-                        .value,
-                  }
-                )
-              }
-              className="border px-2 py-1 rounded-lg text-sm"
-            >
-              {[
-                "PENDING",
-                "SHIPPED",
-                "DELIVERED",
-                "CANCELLED",
-              ].map((s) => (
-                <option
-                  key={s}
-                  value={s}
-                >
-                  {s}
-                </option>
-              ))}
-            </select>
-          ))
+          );
+        }
+
+        return (
+          <select
+            value={row.status}
+            onChange={(e) =>
+              updateStatus.mutate({
+                id: row.id,
+                status: e.target.value,
+              })
+            }
+            className="border px-2 py-1 rounded-lg text-sm"
+          >
+            {statusOptions.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+        );
+      },
     },
 
     {
       header: "Payment",
       render: (row: any) => {
-        const isCOD =
-          row.payment?.provider === "COD";
-
-        const isPaid =
-          row.payment?.status === "SUCCESS";
-        
-        const isCancelled = 
-          row.status === "CANCELLED";
-
-        if (!isCOD) {
-          return (
-            <div>
-              <p className="font-medium text-green-600">
-                Razorpay
-              </p>
-
-              <p className="text-xs text-gray-500">
-                Paid Online
-              </p>
-            </div>
-          );
-        }
+        const payment = row.payment;
+        const isCOD = payment?.provider === "COD";
+        const isPaid = payment?.status === "SUCCESS";
+        const isCancelled = row.status === "CANCELLED";
+        const isExpired = row.status === "FAILED" || row.status === "EXPIRED";
+        const canMarkPaid =
+          isCOD &&
+          !isPaid &&
+          row.status === "DELIVERED";
 
         return (
           <div className="flex flex-col gap-2">
@@ -168,33 +150,40 @@ const Orders = () => {
               className={`text-sm font-medium ${isPaid
                 ? "text-green-600"
                 : isCancelled
-                  ? "text-red-600"
-                  : "text-orange-600"
+                  ? "text-red-600" 
+                  : isExpired
+                    ? "text-yellow-600"
+                    : "text-orange-600"
                 }`}
             >
-              {isPaid
-                ? "Paid"
-                : isCancelled
-                  ? "Cancelled"
-                  : "COD"}
+              {isCancelled
+                ? "CANCELLED"
+                : isPaid
+                  ? "PAID"
+                  : isExpired
+                    ? "EXPIRED"
+                    : "PENDING"}
             </span>
 
-            {!isPaid &&
-              row.status ===
-              "DELIVERED" && (
-                <button
-                  onClick={() =>
-                    updatePayment.mutate({
-                      id: row.id,
-                      status:
-                        "SUCCESS",
-                    })
-                  }
-                  className="bg-green-600 text-white px-3 py-1 rounded-lg text-xs"
-                >
-                  Mark as Paid
-                </button>
-              )}
+            {!isCancelled && (
+              <span className="text-xs text-gray-500">
+                {payment?.provider} - {payment?.status}
+              </span>
+            )}
+
+            {canMarkPaid && (
+              <button
+                onClick={() =>
+                  updatePayment.mutate({
+                    id: row.id,
+                    status: "SUCCESS",
+                  })
+                }
+                className="bg-green-600 text-white px-3 py-1 rounded-lg text-xs"
+              >
+                Mark as Paid
+              </button>
+            )}
           </div>
         );
       },
@@ -275,33 +264,10 @@ const Orders = () => {
                 label: "All",
                 value: "all",
               },
-              {
-                label: "Pending",
-                value:
-                  "PENDING",
-              },
-              {
-                label: "Paid",
-                value: "PAID",
-              },
-              {
-                label:
-                  "Shipped",
-                value:
-                  "SHIPPED",
-              },
-              {
-                label:
-                  "Delivered",
-                value:
-                  "DELIVERED",
-              },
-              {
-                label:
-                  "Cancelled",
-                value:
-                  "CANCELLED",
-              },
+              ...statusOptions.map((status) => ({
+                label: status.toLowerCase().replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+                value: status,
+              })),
             ],
           },
         ]}

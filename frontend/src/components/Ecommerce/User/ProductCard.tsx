@@ -98,7 +98,7 @@ const ProductCard = ({ product }: any) => {
 
       <div className="flex justify-between mt-2">
         <span className="font-bold text-green-600">
-          ₹{product.price}
+          ${product.price.toLocaleString()}
         </span>
 
         <span

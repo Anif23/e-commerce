@@ -101,10 +101,10 @@ export const useRealtimeNotifications = () => {
       }
     };
 
-    socket.on("new_notification", handler);
+    socket.on("user_notification", handler);
 
     return () => {
-      socket.off("new_notification", handler);
+      socket.off("user_notification", handler);
     };
   }, [qc]);
 };

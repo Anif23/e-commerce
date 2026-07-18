@@ -1,7 +1,16 @@
 import { useParams } from "react-router-dom";
 import { useOrder } from "../../../../hooks/user/useOrders";
 
+const steps = [
+    "PENDING_PAYMENT",
+    "PAID",
+    "PROCESSING",
+    "SHIPPED",
+    "DELIVERED",
+];
+
 const OrderDetail = () => {
+
     const { id } = useParams();
 
     const orderId = Number(id);
@@ -11,6 +20,8 @@ const OrderDetail = () => {
     if (isLoading) return <div className="text-center mt-10">Loading...</div>;
 
     if (!order) return <div className="text-center mt-10">Order not found</div>;
+
+    const currentStep = steps.indexOf(order.status);
 
     return (
         <div className="max-w-5xl mx-auto p-6 space-y-6">
@@ -33,7 +44,52 @@ const OrderDetail = () => {
 
                 <div>
                     <p className="text-gray-500 text-sm">Total</p>
-                    <p className="font-bold text-lg">₹{order.total}</p>
+                    <p className="font-bold text-lg">${order.total}</p>
+                </div>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow p-8">
+                <h2 className="text-xl font-bold mb-8">
+                    Order Tracking
+                </h2>
+
+                <div className="flex justify-between relative">
+
+                    {steps.map((step, index) => (
+
+                        <div
+                            key={step}
+                            className="flex-1 flex flex-col items-center relative"
+                        >
+
+                            {index !== steps.length - 1 && (
+                                <div
+                                    className={`absolute top-5 left-1/2 w-full h-1
+                        ${index < currentStep
+                                            ? "bg-green-500"
+                                            : "bg-gray-200"
+                                        }`}
+                                />
+                            )}
+
+                            <div
+                                className={`w-10 h-10 rounded-full z-10 flex items-center justify-center
+                    ${index <= currentStep
+                                        ? "bg-green-500 text-white"
+                                        : "bg-gray-200 text-gray-500"
+                                    }`}
+                            >
+                                {index < currentStep ? "✓" : index + 1}
+                            </div>
+
+                            <span className="text-xs mt-3 text-center font-medium">
+                                {step.replace("_", " ")}
+                            </span>
+
+                        </div>
+
+                    ))}
+
                 </div>
             </div>
 
@@ -57,7 +113,7 @@ const OrderDetail = () => {
                         </div>
 
                         <div className="font-bold">
-                            ₹{item.price * item.quantity}
+                            ${item.price * item.quantity}
                         </div>
                     </div>
                 ))}

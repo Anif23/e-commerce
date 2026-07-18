@@ -18,7 +18,9 @@ import {
 } from "../../../../hooks/admin/useAdminOrders";
 
 const statuses = [
-  "PENDING",
+  "PENDING_PAYMENT",
+  "PAID",
+  "PROCESSING",
   "SHIPPED",
   "DELIVERED",
   "CANCELLED",
@@ -78,7 +80,7 @@ const OrderDetail = () => {
 
         <StatsCard
           title="Amount"
-          value={`₹${order.total}`}
+          value={`$${order.total.toLocaleString()}`}
           icon={<CreditCard />}
         />
 
@@ -306,8 +308,8 @@ const OrderDetail = () => {
                 </div>
 
                 <p className="font-bold">
-                  ₹
-                  {item.price}
+                  $
+                  {item.price.toLocaleString()}
                 </p>
 
               </div>
@@ -325,7 +327,7 @@ const OrderDetail = () => {
             </p>
 
             <h2 className="text-2xl font-bold">
-              ₹{order.total}
+              ${order.total}
             </h2>
 
           </div>

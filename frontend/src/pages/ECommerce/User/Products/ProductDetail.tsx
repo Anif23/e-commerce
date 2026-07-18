@@ -88,21 +88,21 @@ const ProductDetail = () => {
             <div className="flex items-end gap-3">
 
               <div className="text-3xl font-bold text-green-600">
-                ₹{pricing?.finalPrice.toLocaleString()}
+                ${pricing?.finalPrice.toLocaleString()}
               </div>
 
               <div className="text-gray-400 line-through">
-                ₹{product?.price.toLocaleString()}
+                ${product?.price.toLocaleString()}
               </div>
 
               <span className="text-sm text-red-500 font-semibold">
-                Save ₹{pricing?.discountAmount.toLocaleString()}
+                Save ${pricing?.discountAmount.toLocaleString()}
               </span>
 
             </div>
           ) : (
             <div className="text-3xl font-bold text-green-600">
-              ₹{product?.price.toLocaleString()}
+              ${product?.price.toLocaleString()}
             </div>
           )}
         </div>
@@ -112,7 +112,7 @@ const ProductDetail = () => {
             <span className="bg-red-100 text-red-600 text-xs px-3 py-1 rounded-full">
               🔥 {product?.discountType === "PERCENTAGE"
                 ? `${product?.discountValue}% OFF`
-                : `₹${product?.discountValue} OFF`}
+                : `$${product?.discountValue} OFF`}
             </span>
           </div>
         )}

@@ -15,9 +15,12 @@ import { adminRoutes } from "./routes/ecommerce/admin.js";
 
 import { errorHandler } from "./utils/ErrorHandler.js";
 
+import { startOrderExpiryJob } from "./jobs/orderExpiry.job.js";
+
 dotenv.config();
 
 const app = express();
+startOrderExpiryJob();
 
 const server =
   http.createServer(app);

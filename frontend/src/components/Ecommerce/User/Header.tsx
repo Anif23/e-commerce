@@ -17,7 +17,7 @@ import { useAuthStore } from "../../../store/authStore";
 import { useCartStore } from "../../../store/cartStore";
 import { useWishlistStore } from "../../../store/wishlistStore";
 import { useProfile } from "../../../hooks/user/useProfile";
-import NotificationModal from "./NotificationModal";
+import NotificationModal from "../NotificationModal";
 import { useNotifications } from "../../../hooks/user/useNotifications";
 import { userAPI } from "../../../api/user";
 
@@ -218,13 +218,11 @@ const UserHeader = () => {
 
   return (
     <>
-      <NotificationModal
-        open={showNotifications}
-        onClose={() =>
-          setShowNotifications(false)
-        }
-        notifications={notifications}
-      />
+     <NotificationModal
+    open={showNotifications}
+    onClose={() => setShowNotifications(false)}
+    type="user"
+/>
       {/* HEADER */}
       <header
         className={`fixed top-0 left-0 w-full z-50 border-b border-white/20 bg-white/80 backdrop-blur-xl transition-transform duration-300 ${show

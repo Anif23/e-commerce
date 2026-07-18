@@ -13,26 +13,21 @@ import {
   useRealtimeNotifications,
 } from "../../../hooks/user/useNotifications";
 import { useWishlist } from "../../../hooks/user/useWishlist";
+import { useRealtimeOrders } from "../../../hooks/user/useOrders";
 
 const UserLayout = () => {
 
-  const { user } =
-    useAuthStore();
-
-  useRealtimeNotifications();
-  useWishlist();
+  const user = useAuthStore((s) => s.user);
 
   useEffect(() => {
-
     if (user?.id) {
-
-      socket.emit(
-        "join",
-        user.id
-      );
+      socket.emit("join", user.id);
     }
-
   }, [user]);
+
+  useRealtimeNotifications();
+  // useRealtimeOrders();
+  useWishlist();
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">

@@ -8,7 +8,6 @@ import { useCartStore } from "../../store/cartStore";
 
 export const useCart = () => {
   const token = useAuthStore((s) => s.token);
-
   const setItems = useCartStore((s) => s.setItems);
 
   return useQuery({
@@ -17,15 +16,15 @@ export const useCart = () => {
     queryFn: async () => {
       const res = await userAPI.cart();
 
-      const items = res.data.data.items;
+      setItems(res.data.data.cart.items);
 
-      // sync api cart
-      setItems(items);
-
-      return items;
+      return res.data.data;
     },
 
     enabled: !!token,
+
+    // refetchInterval: (query) =>
+    //   query.state.data?.existingOrder ? 5000 : false,
   });
 };
 
@@ -71,7 +70,7 @@ export const useUpdateCart = () => {
 
     onSuccess: () => {
       toast.success("Cart updated");
-      qc.invalidateQueries({ queryKey: qk.cart });
+      qc.invalidateQueries({ queryKey: [qk.cart] });
     },
 
     onError: (err: any) => {
@@ -88,7 +87,7 @@ export const useRemoveCart = () => {
 
     onSuccess: () => {
       toast.success("Item removed ❌");
-      qc.invalidateQueries({ queryKey: qk.cart });
+      qc.invalidateQueries({ queryKey: [qk.cart] });
     },
 
     onError: (err: any) => {

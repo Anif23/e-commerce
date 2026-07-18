@@ -126,7 +126,7 @@ const Products = () => {
       header: "Price",
 
       render: (row: any) =>
-        `₹${row.price}`,
+        `$${row.price.toLocaleString()}`,
     },
 
     {
