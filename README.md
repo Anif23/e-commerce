@@ -92,11 +92,11 @@ Features implemented:
 
 ### Product Listing
 
-![Products](./screenshots/products.png)
+![Products](./screenshots/user_products.png)
 
 ### Product Details
 
-![Product Details](./screenshots/product-details.png)
+![Product Details](./screenshots/user_product_detail.png)
 
 ### Cart
 
@@ -104,15 +104,28 @@ Features implemented:
 
 ### Checkout
 
-![Checkout](./screenshots/checkout.png)
+![Checkout](./screenshots/cart_online_payment.png)
+![Checkout](./screenshots/paypal_payment.png)
+
+### Order Details
+
+![Checkout](./screenshots/user_order_detail.png)
 
 ### Admin Dashboard
 
-![Admin Dashboard](./screenshots/admin-dashboard.png)
+![Admin Dashboard](./screenshots/admin_dashboard.png)
+
+### Produts Management
+
+![Orders](./screenshots/admin_products.png)
+
+### categories Management
+
+![Orders](./screenshots/admin_categories.png)
 
 ### Orders Management
 
-![Orders](./screenshots/orders.png)
+![Orders](./screenshots/admin_orders.png)
 
 ### Notifications
 
