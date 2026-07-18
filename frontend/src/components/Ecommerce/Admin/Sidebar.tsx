@@ -99,7 +99,7 @@ const Sidebar = ({ open, setOpen }: any) => {
         </div>
 
         {/* FOOTER */}
-        <div className="absolute bottom-0 left-0 right-0 p-4">
+        <div className="p-4">
           <div className="rounded-2xl bg-black text-white p-4">
             <p className="text-sm font-semibold">
               Premium Admin
