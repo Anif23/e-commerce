@@ -1,127 +1,193 @@
-# 🚀 Multi Projects – Learning Repository
+# 🛒 Full Stack E-Commerce Platform
 
-This repository contains multiple projects built as part of my **learning journey in full-stack development**, with a strong focus on **backend development and real-world application logic**.
+A modern full-stack e-commerce platform built with React.js, Node.js, Express.js, PostgreSQL, and Prisma ORM.
 
-> 📌 This is not a single polished product —
-> it’s a collection of projects where I experiment, learn, and improve over time.
-
----
-
-## 🎯 Purpose
-
-* Learn backend development deeply
-* Build real-world application flows
-* Understand system design & architecture
-* Practice API design and database modeling
-* Improve frontend gradually alongside backend
+The application provides a complete shopping experience with product management, cart, checkout, PayPal payments, real-time notifications, inventory management, and admin dashboard functionality.
 
 ---
 
-## 📂 Projects Included
+## 🚀 Features
 
-### 📝 Todo App
+### User Features
 
-* Basic CRUD operations
-* API integration
-* State management
-* Simple UI for learning fundamentals
+* User Registration & Login
+* JWT Authentication
+* Product Browsing & Search
+* Category Filtering
+* Shopping Cart
+* Wishlist Management
+* Checkout & Order Placement
+* PayPal Payment Integration
+* Order Tracking
+* Real-Time Order Status Updates
+* Browser Notifications
+
+### Admin Features
+
+* Dashboard Analytics
+* Product Management
+* Category Management
+* Inventory Management
+* Order Management
+* User Management
+* Low Stock Alerts
+* Real-Time Order Notifications
+* Notification Center
+
+### Real-Time Features
+
+* Socket.IO Integration
+* Instant Admin Notifications
+* Live Order Updates
+* User Order Status Notifications
+* Real-Time Inventory Alerts
 
 ---
 
-### 🛒 E-Commerce App
+## 🛠 Tech Stack
 
-> ⚠️ Backend-focused project
+### Frontend
 
-#### 🔹 Features
+* React.js
+* TypeScript
+* Tailwind CSS
+* TanStack Query
+* Zustand
+* React Hook Form
+* Socket.IO Client
 
-* Product listing & filtering
-* Search functionality
-* Cart system (Guest + Logged-in)
-* Wishlist system
-* Authentication (JWT)
-* Role-based access (Admin / User)
-* Orders & checkout flow
-
-#### 🧠 Key Learning Areas
-
-* Guest → Login → Data merge (cart & wishlist)
-* Prisma relational database design
-* API optimization (`isWishlisted`, conditional queries)
-* React Query for server state management
-* Zustand for local state (guest users)
-
----
-
-## 🧱 Tech Stack
-
-### Backend (Primary Focus)
+### Backend
 
 * Node.js
-* Express
+* Express.js
 * Prisma ORM
 * PostgreSQL
 * JWT Authentication
+* Zod Validation
+* Socket.IO
 
-### Frontend (Secondary Focus)
+### Payments
 
-* React + TypeScript
-* Zustand
-* React Query
-* Tailwind CSS
+* PayPal Checkout Integration
 
-> ⚠️ Frontend is functional but not the main focus.
-> I will improve UI/UX as I continue learning.
+## 🚧 Project Status
+
+This project is currently under active development and runs locally.
+
+Features implemented:
+- JWT Authentication
+- PayPal Integration
+- Admin Dashboard
+- Real-Time Notifications
+- Live Order Updates
+- Product & Order Management
 
 ---
 
-## 🔄 Learning Approach
+## 📸 Screenshots
 
-* Start simple → gradually improve
-* Focus more on **logic than UI**
-* Build features similar to real-world apps
-* Refactor and optimize over time
+### Home Page
+
+![Home Page](./screenshots/home.png)
+
+### Product Listing
+
+![Products](./screenshots/products.png)
+
+### Product Details
+
+![Product Details](./screenshots/product-details.png)
+
+### Cart
+
+![Cart](./screenshots/cart.png)
+
+### Checkout
+
+![Checkout](./screenshots/checkout.png)
+
+### Admin Dashboard
+
+![Admin Dashboard](./screenshots/admin-dashboard.png)
+
+### Orders Management
+
+![Orders](./screenshots/orders.png)
+
+### Notifications
+
+![Notifications](./screenshots/notifications.png)
 
 ---
 
-## ▶️ Running Projects
+## 📂 Project Structure
 
-Each project has its own setup inside its folder.
+frontend/
+├── src/
+├── components/
+├── pages/
+├── hooks/
+└── store/
 
-Example:
+backend/
+├── controllers/
+├── routes/
+├── prisma/
+├── middleware/
+├── socket/
+└── utils/
 
-```bash id="runmulti"
-cd ecommerce/backend
+---
+
+## ⚙️ Installation
+
+### Frontend
+
+```bash
 npm install
 npm run dev
 ```
 
-```bash id="runmulti2"
-cd ecommerce/frontend
+### Backend
+
+```bash
 npm install
 npm run dev
 ```
 
+### Prisma
+
+```bash
+npx prisma migrate dev
+npx prisma generate
+```
+
 ---
 
-## 📌 Future Plans
+## 🔥 Key Highlights
 
-* Add more projects (API, system design, etc.)
-* Improve frontend UI (modern, responsive design)
-* Implement advanced backend patterns
-* Add testing & validations
-* Explore microservices / scalability concepts
+* Full-Stack Architecture
+* PayPal Payment Gateway
+* Real-Time Notifications
+* Live Order Tracking
+* Inventory Management
+* Admin Dashboard
+* Responsive Design
+* REST API Architecture
+* PostgreSQL Database
+* Socket.IO Integration
 
 ---
 
 ## 👨‍💻 Author
 
-**Mohamed Puhari Anif Y**
+Mohamed Puhari Anif Y
 
----
+LinkedIn:
+https://www.linkedin.com/in/mohamed-puhari-anif-y-787801254/
 
-## ⭐ Note
+GitHub:
+https://github.com/Anif23
 
-This repository reflects my **continuous learning process**.
-Each project represents a step forward in understanding real-world development.
-
----
+Portfolio:
+https://anif-portfolio-app.vercel.app/
