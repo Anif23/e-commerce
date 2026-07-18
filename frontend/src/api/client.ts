@@ -64,11 +64,19 @@ api.interceptors.response.use(
 
         return api(originalRequest);
       } catch (err) {
-        toast.error("Session expired");
+        // Only redirect to login if we're not already on a public page
+        const publicRoutes = ["/", "/login", "/register", "/user/ecommerce"];
+        const currentPath = window.location.pathname;
+        const isPublicPage = publicRoutes.some(
+          (route) =>
+            currentPath === route || currentPath.startsWith("/user/ecommerce")
+        );
 
-        useAuthStore.getState().logout();
-
-        window.location.href = "/login";
+        if (!isPublicPage) {
+          toast.error("Session expired");
+          useAuthStore.getState().logout();
+          window.location.href = "/login";
+        }
       } finally {
         isRefreshing = false;
       }

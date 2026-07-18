@@ -4,32 +4,60 @@ import { qk } from "../../utils/queryKeys";
 import toast from "react-hot-toast";
 import { getErrorMessage } from "../../utils/getErrorMessage";
 import { useAuthStore } from "../../store/authStore";
+import { useCartStore } from "../../store/cartStore";
 
 export const useCart = () => {
   const token = useAuthStore((s) => s.token);
+  const setItems = useCartStore((s) => s.setItems);
 
   return useQuery({
-    queryKey: qk.cart,
+    queryKey: [qk.cart],
+
     queryFn: async () => {
       const res = await userAPI.cart();
+
+      setItems(res.data.data.cart.items);
+
       return res.data.data;
     },
+
     enabled: !!token,
+
+    // refetchInterval: (query) =>
+    //   query.state.data?.existingOrder ? 5000 : false,
   });
 };
 
 export const useAddToCart = () => {
   const qc = useQueryClient();
 
+  const cartStore = useCartStore();
+
   return useMutation({
-    mutationFn: (data: any) => userAPI.addToCart(data),
+    mutationFn: ({ product, qty }: any) =>
+      userAPI.addToCart({
+        productId: product.id,
+        quantity: qty,
+      }),
 
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.cart });
+      toast.success("Added to cart 🛒");
     },
 
-    onError: (err: any) => {
-      toast.error(getErrorMessage(err));
+    onMutate: ({ product, qty }) => {
+      // optimistic update once
+      cartStore.add(product, qty);
+    },
+
+    onError: (_, variables) => {
+      // rollback
+      cartStore.update(variables.product.id, 0);
+    },
+
+    onSettled: () => {
+      qc.invalidateQueries({
+        queryKey: [qk.cart],
+      });
     },
   });
 };
@@ -42,7 +70,7 @@ export const useUpdateCart = () => {
 
     onSuccess: () => {
       toast.success("Cart updated");
-      qc.invalidateQueries({ queryKey: qk.cart });
+      qc.invalidateQueries({ queryKey: [qk.cart] });
     },
 
     onError: (err: any) => {
@@ -59,7 +87,7 @@ export const useRemoveCart = () => {
 
     onSuccess: () => {
       toast.success("Item removed ❌");
-      qc.invalidateQueries({ queryKey: qk.cart });
+      qc.invalidateQueries({ queryKey: [qk.cart] });
     },
 
     onError: (err: any) => {

@@ -1,58 +1,56 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../../store/authStore";
-import { useGuestCartStore } from "../../../store/guestCartStore";
-import { useWishlistStore } from "../../../store/guestWishlistStore";
+import { useCartStore } from "../../../store/cartStore";
+import { useWishlistStore } from "../../../store/wishlistStore";
 import { useAddToCart } from "../../../hooks/user/useCart";
 import { useToggleWishlist } from "../../../hooks/user/useWishlist";
 
 import toast from "react-hot-toast";
 
 const ProductCard = ({ product }: any) => {
-
   const navigate = useNavigate();
 
   const token = useAuthStore((s) => s.token);
 
-  const guestCart = useGuestCartStore();
-  const guestWishlist = useWishlistStore();
+  const cartStore = useCartStore();
+  const wishlistStore = useWishlistStore();
 
   const addToCart = useAddToCart();
   const toggleWishlistApi = useToggleWishlist();
 
   const [qty, setQty] = useState(1);
 
-  const isWishlisted = token
-    ? product.isWishlisted 
-    : guestWishlist.isWishlisted(product.id);
+  const isWishlisted =
+    wishlistStore.isWishlisted(product.id);
 
   const handleWishlist = () => {
-    if (!token) {
-      guestWishlist.toggle(product);
-      return;
-    }
+    wishlistStore.toggle(product);
 
-    toggleWishlistApi.mutate(product.id);
+    if (token) {
+      toggleWishlistApi.mutate(product);
+    }
   };
 
   const handleAddToCart = () => {
     if (product.stock === 0) return;
 
+    // guest
     if (!token) {
-      guestCart.add(product, qty);
+      cartStore.add(product, qty);
+
       toast.success("Added to cart 🛒");
+
       setQty(1);
+
       return;
     }
 
+    // auth
     addToCart.mutate(
-      {
-        productId: product.id,
-        quantity: qty,
-      },
+      { product, qty },
       {
         onSuccess: () => {
-          toast.success("Added to cart 🛒");
           setQty(1);
         },
       }
@@ -60,11 +58,15 @@ const ProductCard = ({ product }: any) => {
   };
 
   const increase = () => {
-    if (qty < product.stock) setQty((q) => q + 1);
+    if (qty < product.stock) {
+      setQty((q) => q + 1);
+    }
   };
 
   const decrease = () => {
-    if (qty > 1) setQty((q) => q - 1);
+    if (qty > 1) {
+      setQty((q) => q - 1);
+    }
   };
 
   return (
@@ -96,15 +98,14 @@ const ProductCard = ({ product }: any) => {
 
       <div className="flex justify-between mt-2">
         <span className="font-bold text-green-600">
-          ₹{product.price}
+          ${product.price.toLocaleString()}
         </span>
 
         <span
-          className={`text-xs px-2 py-1 rounded ${
-            product.stock > 0
-              ? "bg-green-100 text-green-600"
-              : "bg-red-100 text-red-600"
-          }`}
+          className={`text-xs px-2 py-1 rounded ${product.stock > 0
+            ? "bg-green-100 text-green-600"
+            : "bg-red-100 text-red-600"
+            }`}
         >
           {product.stock > 0 ? "In Stock" : "Out"}
         </span>

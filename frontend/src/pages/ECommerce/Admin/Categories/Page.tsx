@@ -1,11 +1,15 @@
-import { use, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import {
+  useState,
+} from "react";
+
+import {
+  useNavigate,
+} from "react-router-dom";
+
 import {
   FolderTree,
   Image as ImageIcon,
   Layers3,
-  Pencil,
-  Trash2,
 } from "lucide-react";
 
 import PageHeader from "../../../../components/Ecommerce/Admin/PageHeader";
@@ -19,107 +23,93 @@ import {
   useDeleteCategory,
 } from "../../../../hooks/admin/useAdminCategories";
 
-const PER_PAGE = 8;
-
 const Categories = () => {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
-  const deleteCategory = useDeleteCategory();
-
-  const {
-    data: categories = [],
-    isLoading,
-  } = useAdminCategories();
-
-  const [search, setSearch] =
-    useState("");
-
-  const [imageFilter, setImageFilter] =
-    useState("all");
+  const deleteCategory =
+    useDeleteCategory();
 
   const [page, setPage] =
     useState(1);
 
-  const filtered = useMemo(() => {
-    return categories.filter((p: any) => {
-      const matchSearch =
-        !search ||
-        p.name.toLowerCase().includes(search.toLowerCase());
+  const [search, setSearch] =
+    useState("");
 
-      const matchStatus =
-        imageFilter === "all"
-          ? true
-          : imageFilter === "image"
-            ? p.image
-            : !p.image;
-
-      return matchSearch && matchStatus;
+  const { data, isLoading } =
+    useAdminCategories({
+      page,
+      search,
     });
-  }, [categories, search, imageFilter]);
 
+  const categories =
+    data?.data || [];
 
-  const totalPages = Math.ceil(
-    filtered.length / PER_PAGE
-  );
-
-  const rows = filtered.slice(
-    (page - 1) * PER_PAGE,
-    page * PER_PAGE
-  );
+  const pg =
+    data?.pagination ||
+    {};
 
   const columns = [
     {
-      header: "Category",
-      render: (item: any) => (
-        <div className="flex items-center gap-3">
+      header:
+        "Category",
+
+      render: (
+        row: any
+      ) => (
+        <div className="flex gap-3 items-center">
           <img
-            src={item.image || "/placeholder.png"}
-            className="w-14 h-14 rounded-2xl border object-cover"
+            src={
+              row.image
+            }
+            className="w-12 h-12 rounded-xl border object-cover"
           />
 
           <div>
-            <p className="font-semibold">{item.name}</p>
-            <p className="text-xs text-gray-500">ID #{item.id}</p>
+            <p className="font-medium">
+              {row.name}
+            </p>
+
+            <p className="text-xs text-gray-400">
+              #{row.id}
+            </p>
           </div>
         </div>
       ),
     },
 
     {
-      header: "Slug",
-      accessor: "slug",
+      header:
+        "Slug",
+      accessor:
+        "slug",
     },
 
     {
-      header: "Image Status",
-      render: (item: any) => (
+      header:
+        "Status",
+      render: (
+        row: any
+      ) => (
         <span
-          className={`px-3 py-1 rounded-full text-xs font-semibold ${item.image
-              ? "bg-green-100 text-green-700"
-              : "bg-gray-100 text-gray-500"
+          className={`px-3 py-1 rounded-full text-xs ${row.image
+            ? "bg-green-100 text-green-700"
+            : "bg-gray-100 text-gray-500"
             }`}
         >
-          {item.image ? "Available" : "No Image"}
+          {row.image
+            ? "Image"
+            : "No Image"}
         </span>
       ),
     },
   ];
 
-  if (isLoading) {
-    return (
-      <div className="h-screen flex items-center justify-center text-gray-400">
-        Loading categories...
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-
-      {/* HEADER */}
       <PageHeader
         title="Categories"
-        subtitle="Manage product categories and collections"
+        subtitle="Manage categories"
         buttonText="Add Category"
         onClick={() =>
           navigate(
@@ -128,66 +118,90 @@ const Categories = () => {
         }
       />
 
-      {/* STATS */}
       <div className="grid md:grid-cols-3 gap-5">
         <StatsCard
-          title="Total Categories"
-          value={categories.length}
-          icon={<FolderTree />}
-        />
-
-        <StatsCard
-          title="With Image"
+          title="Categories"
           value={
-            categories.filter(
-              (c: any) => c.image
-            ).length
+            pg.total ||
+            0
           }
-          icon={<ImageIcon />}
+          icon={
+            <FolderTree />
+          }
         />
 
         <StatsCard
           title="Collections"
           value={
-            categories.length
+            pg.total ||
+            0
           }
-          icon={<Layers3 />}
+          icon={
+            <Layers3 />
+          }
         />
       </div>
 
       <FilterBar
-        search={search}
-        setSearch={setSearch}
-        total={filtered.length}
-        selects={[
-          {
-            value: imageFilter,
-            onChange: setImageFilter,
-            options: [
-              { label: "All Categories", value: "all" },
-              { label: "With Image", value: "image" },
-              { label: "No Image", value: "noimage" },
-            ],
-          },
-        ]}
+        search={
+          search
+        }
+        setSearch={
+          setSearch
+        }
+        total={
+          pg.total ||
+          0
+        }
       />
 
       <DataTable
-        columns={columns}
-        rows={rows}
+        loading={
+          isLoading
+        }
+        columns={
+          columns
+        }
+        rows={
+          categories
+        }
         actions={{
-          onEdit: (item) =>
-            navigate(`/admin/ecommerce/category/${item.id}`),
+          onEdit:
+            (
+              row
+            ) =>
+              navigate(
+                `/admin/ecommerce/category/${row.id}`
+              ),
 
-          onDelete: (item) =>
-            deleteCategory.mutate(item.id),
+          onDelete:
+            (
+              row
+            ) =>
+              deleteCategory.mutate(
+                row.id
+              ),
         }}
       />
 
       <Pagination
-        page={page}
-        totalPages={totalPages}
-        setPage={setPage}
+        page={
+          pg.page ||
+          1
+        }
+        totalPages={
+          pg.totalPages ||
+          1
+        }
+        hasNext={
+          pg.hasNext
+        }
+        hasPrev={
+          pg.hasPrev
+        }
+        setPage={
+          setPage
+        }
       />
     </div>
   );

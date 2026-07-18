@@ -1,6 +1,7 @@
 import { prisma } from "../../config/prisma.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiError } from "../../utils/apiError.js";
+import { io } from "../../index.js";
 
 export const orderController = {
 
@@ -17,7 +18,7 @@ export const orderController = {
                         }
                     }
                 },
-                payment: true
+                payment: true,
             },
             orderBy: { createdAt: "desc" }
         });
@@ -60,79 +61,115 @@ export const orderController = {
         });
     }),
 
-    updateOrderStatus: asyncHandler(async (req, res) => {
+    cancelOrder: asyncHandler(async (req, res) => {
         const orderId = Number(req.params.id);
-        const status = req.body?.status;
 
-        if (!status || status.toString().trim() === "") {
-            throw new ApiError(400, "Please give a status to update");
-        }
-
-        const validStatus = ["PENDING", "PAID", "SHIPPED", "DELIVERED", "CANCELLED"];
-
-        if (!validStatus.includes(status)) {
-            throw new ApiError(400, "Invalid status");
-        }
-
-        const order = await prisma.order.findUnique({
-            where: { id: orderId }
+        const order = await prisma.order.findFirst({
+            where: {
+                id: orderId,
+                userId: req.user.id,
+            },
+            include: {
+                payment: true,
+            },
         });
 
         if (!order) {
             throw new ApiError(404, "Order not found");
         }
 
-        const allowedTransitions = {
-            PENDING: ["PAID", "CANCELLED"],
-            PAID: ["SHIPPED", "CANCELLED"],
-            SHIPPED: ["DELIVERED"],
-            DELIVERED: [],
-            CANCELLED: []
-        };
-
-        if (!allowedTransitions[order.status].includes(status)) {
-            throw new ApiError(
-                400,
-                `Cannot change status from ${order.status} to ${status}`
-            );
+        if (order.status !== "PENDING_PAYMENT") {
+            throw new ApiError(400, "Only pending payment orders can be cancelled");
         }
 
-        const updated = await prisma.order.update({
-            where: { id: orderId },
-            data: { status }
+        await prisma.$transaction(async (tx) => {
+            await tx.order.update({
+                where: {
+                    id: order.id,
+                },
+                data: {
+                    status: "CANCELLED",
+                },
+            });
+
+            await tx.payment.update({
+                where: {
+                    orderId: order.id,
+                },
+                data: {
+                    status: "CANCELLED",
+                },
+            });
         });
 
-        res.json({
+        io.emit("order_updated", {
+            type: "CANCELLED",
+            orderId: order.id,
+        });
+
+        return res.json({
             success: true,
-            message: "Order status updated",
-            data: updated
+            message: "Order cancelled successfully",
         });
     }),
 
-    updatePaymentStatus: asyncHandler(async (req, res) => {
+    expireOrder: asyncHandler(async (req, res) => {
         const orderId = Number(req.params.id);
-        const { status } = req.body;
-        
-        if (!status || status.toString().trim() === "") {
-            throw new ApiError(400, "Please give a status to update");
-        }
 
-        const payment = await prisma.payment.update({
-            where: { orderId: Number(orderId) },
-            data: { status }
+        const order = await prisma.order.findFirst({
+            where: {
+                status: "PENDING_PAYMENT",
+                expiresAt: {
+                    not: null,
+                    lt: new Date(),
+                }
+            },
+            include: {
+                payment: true,
+            },
         });
 
-        if (status === "SUCCESS") {
-            await prisma.order.update({
-                where: { id: Number(orderId) },
-                data: { status: "PAID" }
+        if (!order) {
+            throw new ApiError(404, "Order not found");
+        }
+
+        if (order.status !== "PENDING_PAYMENT") {
+            return res.json({
+                success: true,
+                message: "Order already processed",
             });
         }
 
-        res.json({
-            success: true,
-            message: "Payment updated",
-            data: payment
+        if (!order.expiresAt || order.expiresAt > new Date()) {
+            throw new ApiError(400, "Order has not expired yet");
+        }
+
+        await prisma.$transaction(async (tx) => {
+            await tx.order.update({
+                where: { id: order.id },
+                data: {
+                    status: "EXPIRED",
+                },
+            });
+
+            await tx.payment.update({
+                where: {
+                    orderId: order.id,
+                },
+                data: {
+                    status: "FAILED",
+                },
+            });
         });
-    })
+
+        io.emit("order_updated", {
+            type: "EXPIRED",
+            orderId: order.id,
+        });
+
+        return res.json({
+            success: true,
+            message: "Order expired",
+        });
+    }),
 };

@@ -1,24 +1,29 @@
-// hooks/user/useWishlist.ts
-
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { userAPI } from "../../api/user";
 import { qk } from "../../utils/queryKeys";
 import toast from "react-hot-toast";
 import { useAuthStore } from "../../store/authStore";
+import { useWishlistStore } from "../../store/wishlistStore";
 
 export const useWishlist = () => {
   const token = useAuthStore((s) => s.token);
 
+  const setItems = useWishlistStore((s) => s.setItems);
+
   return useQuery({
-    queryKey: qk.wishlist,
+    queryKey: [qk.wishlist],
+
     queryFn: async () => {
       const res = await userAPI.wishlist();
-      return res.data.data;
+
+      // extract products
+      const products = res.data.data.map((item: any) => item.product);
+
+      setItems(products);
+
+      return products;
     },
+
     enabled: !!token,
   });
 };
@@ -26,56 +31,31 @@ export const useWishlist = () => {
 export const useToggleWishlist = () => {
   const qc = useQueryClient();
 
+  const toggle = useWishlistStore((s) => s.toggle);
+
   return useMutation({
-    mutationFn: (productId: number) =>
-      userAPI.toggleWishlist(productId),
+    mutationFn: (product: any) => userAPI.toggleWishlist(product.id),
 
-    onMutate: async (productId) => {
-      // instant UI update
-      qc.setQueriesData(
-        { queryKey: qk.userProducts },
-        (old: any) => {
-          if (!old?.data) return old;
+    // optimistic update
+    onMutate: async (product) => {
+      toggle(product);
+    },
 
-          return {
-            ...old,
-            data: old.data.map((p: any) =>
-              p.id === productId
-                ? {
-                    ...p,
-                    isWishlisted:
-                      !p.isWishlisted,
-                  }
-                : p
-            ),
-          };
-        }
-      );
+    // rollback
+    onError: (_, product) => {
+      toggle(product);
+
+      toast.error("Failed to update wishlist");
     },
 
     onSuccess: (res) => {
-      toast.success(
-        res?.data?.message ||
-          "Wishlist updated ❤️"
-      );
-
-      qc.invalidateQueries({
-        queryKey: qk.userProducts,
-      });
-
-      qc.invalidateQueries({
-        queryKey: qk.wishlist,
-      });
-
-      qc.invalidateQueries({
-        queryKey: qk.useProfile,
-      });
+      toast.success(res?.data?.message || "Wishlist updated ❤️");
     },
 
-    onError: () => {
-      toast.error(
-        "Failed to update wishlist"
-      );
+    onSettled: () => {
+      qc.invalidateQueries({
+        queryKey: [qk.wishlist],
+      });
     },
   });
 };

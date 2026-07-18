@@ -19,17 +19,25 @@ enum Role {
 }
 
 enum OrderStatus {
-  PENDING
+  PENDING_PAYMENT
   PAID
+  PROCESSING
   SHIPPED
   DELIVERED
   CANCELLED
+  EXPIRED
 }
 
 enum PaymentStatus {
   PENDING
   SUCCESS
   FAILED
+  CANCELLED
+}
+
+enum PaymentProvider{
+    COD
+    PAYPAL
 }
 
 enum DiscountType {
@@ -42,6 +50,15 @@ enum NotificationType {
   ORDER
   ANNOUNCEMENT
   PROMOTION
+  SYSTEM
+}
+
+enum AdminNotificationType {
+  ORDER
+  PAYMENT
+  LOW_STOCK
+  USER
+  DRIVER
   SYSTEM
 }
 
@@ -96,7 +113,12 @@ model Order {
   userId Int
   total  Float
 
-  status OrderStatus @default(PENDING)
+  status OrderStatus
+
+  addressId Int?
+  address   Address? @relation(fields: [addressId], references: [id])
+
+  expiresAt DateTime?
 
   createdAt DateTime @default(now())
 
@@ -123,10 +145,14 @@ model Payment {
   orderId Int @unique
 
   amount Float
+
   status PaymentStatus @default(PENDING)
 
-  provider  String
+  provider PaymentProvider
+
   paymentId String?
+  payerId String?
+  payerEmail String?
 
   order Order @relation(fields: [orderId], references: [id])
 }
@@ -214,6 +240,8 @@ model Notification {
 
   type NotificationType @default(SYSTEM)
 
+  link String?
+
   isRead Boolean @default(false)
 
   userId Int?
@@ -291,6 +319,11 @@ model Address {
   zipCode  String
 
   isDefault Boolean @default(false)
+
+  orders Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Review {
@@ -317,6 +350,21 @@ model RefreshToken {
   expiresAt DateTime
 
   @@index([userId])
+}
+
+model AdminNotification {
+  id Int @id @default(autoincrement())
+
+  title   String
+  message String
+
+  type AdminNotificationType
+
+  isRead Boolean @default(false)
+
+  link String?
+
+  createdAt DateTime @default(now())
 }
 
 //Todo

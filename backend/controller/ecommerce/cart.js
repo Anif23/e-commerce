@@ -6,20 +6,64 @@ import { cartSchema } from "../../validations/ecommerce.js";
 export const cartController = {
 
     getCart: asyncHandler(async (req, res) => {
+
+        let existingOrder = await prisma.order.findFirst({
+            where: {
+                userId: req.user.id,
+                status: "PENDING_PAYMENT",
+                expiresAt: {
+                    not: null,
+                },
+            },
+            include: {
+                payment: true,
+            },
+        });
+
+        if (
+            existingOrder &&
+            existingOrder.expiresAt &&
+            existingOrder.expiresAt <= new Date()
+        ) {
+            await prisma.$transaction(async (tx) => {
+                await tx.order.update({
+                    where: { id: existingOrder.id },
+                    data: { status: "EXPIRED" },
+                });
+
+                await tx.payment.update({
+                    where: { orderId: existingOrder.id },
+                    data: { status: "FAILED" },
+                });
+            });
+
+            existingOrder = null;
+        }
+
         const cart = await prisma.cart.findUnique({
-            where: { userId: req.user.id },
+            where: {
+                userId: req.user.id,
+            },
             include: {
                 items: {
                     include: {
                         product: {
-                            include: { images: true }
-                        }
-                    }
-                }
-            }
+                            include: {
+                                images: true,
+                            },
+                        },
+                    },
+                },
+            },
         });
 
-        res.json({ success: true, data: cart });
+        res.json({
+            success: true,
+            data: {
+                cart,
+                existingOrder,
+            },
+        });
     }),
 
     addToCart: asyncHandler(async (req, res) => {

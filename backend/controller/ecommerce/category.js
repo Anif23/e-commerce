@@ -1,155 +1,260 @@
 import { prisma } from "../../config/prisma.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiError } from "../../utils/apiError.js";
+
 import { createCategorySchema } from "../../validations/ecommerce.js";
-import slugify from "slugify";
-import fs from "fs";
-import path from "path";
+
+import {
+  getPagination,
+  getMeta,
+} from "../../utils/pagination.js";
+
+import {
+  slug,
+  image,
+  searchBy,
+} from "../../utils/common.js";
+
 import { deleteFiles } from "../../utils/deleteFiles.js";
 
-export const categoryController = {
+export const categoryController =
+{
+  createCategory:
+    asyncHandler(
+      async (req, res) => {
 
-  createCategory: asyncHandler(async (req, res) => {
-    const body = createCategorySchema.parse(req.body);
-    const slug = slugify(body.name, { lower: true, strict: true });
+        const body =
+          createCategorySchema.parse(
+            req.body
+          );
 
-    const image = req.file
-      ? `http://localhost:8000/uploads/${req.file.filename}`
-      : null;
+        const exists =
+          await prisma.category.findFirst({
+            where: {
+              slug: slug(
+                body.name
+              ),
+            },
+          });
 
-    const existingCategory = await prisma.category.findFirst({
-      where: { slug }
-    });
+        if (exists)
+          throw new ApiError(
+            400,
+            "Category already exists"
+          );
 
-    if (existingCategory) {
-      throw new ApiError(400, "Category with this name already exists");
-    }
+        const category =
+          await prisma.category.create({
+            data: {
+              ...body,
 
-    const category = await prisma.category.create({
-      data: {
-        name: body.name,
-        slug,
-        parentId: body.parentId ?? null,
-        image
-      }
-    });
+              slug: slug(
+                body.name
+              ),
 
-    res.status(201).json({
-      success: true,
-      message: "Category created successfully",
-      data: category
-    });
-  }),
+              parentId:
+                body.parentId ||
+                null,
 
-  updateCategory: asyncHandler(async (req, res) => {
-    const { id } = req.params;
+              image: image(
+                req.file
+              ),
+            },
+          });
 
-    const body = createCategorySchema.partial().parse(req.body);
-
-    const category = await prisma.category.findUnique({
-      where: { id: Number(id) }
-    });
-
-    if (!category) {
-      deleteFiles(req.file ? [req.file] : []);
-      throw new ApiError(404, "Category not found");
-    }
-
-    let slug;
-    if (body.name) {
-      slug = slugify(body.name, { lower: true, strict: true });
-    }
-
-    // replace image
-    let image;
-    if (req.file) {
-      // delete old image
-      if (category.image) {
-        const filePath = path.join(
-          "uploads",
-          category.image.split("/uploads/")[1]
-        );
-
-        fs.unlink(filePath, err => {
-          if (err) console.error(err);
+        res.status(201).json({
+          success: true,
+          data: category,
         });
       }
+    ),
 
-      image = `http://localhost:8000/uploads/${req.file.filename}`;
-    }
+  updateCategory:
+    asyncHandler(
+      async (req, res) => {
 
-    const updatedCategory = await prisma.category.update({
-      where: { id: Number(id) },
-      data: {
-        ...(body.name && { name: body.name }),
-        ...(slug && { slug }),
-        ...(body.parentId !== undefined && {
-          parentId: body.parentId
-        }),
-        ...(image && { image })
+        const id = Number(
+          req.params.id
+        );
+
+        const body =
+          createCategorySchema
+            .partial()
+            .parse(req.body);
+
+        const category =
+          await prisma.category.findUnique(
+            {
+              where: { id },
+            }
+          );
+
+        if (!category) {
+          deleteFiles(req.file);
+
+          throw new ApiError(
+            404,
+            "Category not found"
+          );
+        }
+
+        const updated =
+          await prisma.category.update(
+            {
+              where: { id },
+
+              data: {
+                ...body,
+
+                ...(body.name && {
+                  slug: slug(
+                    body.name
+                  ),
+                }),
+
+                ...(req.file && {
+                  image: image(
+                    req.file
+                  ),
+                }),
+              },
+            }
+          );
+
+        res.json({
+          success: true,
+          data: updated,
+        });
       }
-    });
+    ),
 
-    res.json({
-      success: true,
-      data: updatedCategory
-    });
-  }),
+  getCategories:
+    asyncHandler(
+      async (req, res) => {
 
-  getCategories: asyncHandler(async (req, res) => {
-    const categories = await prisma.category.findMany({
-      where: { parentId: null },
-      include: {
-        children: true
+        const {
+          search,
+        } = req.query;
+
+        const {
+          page,
+          limit,
+          skip,
+        } = getPagination(
+          req.query
+        );
+
+        const where = {
+          parentId: null,
+
+          ...searchBy(
+            "name",
+            search
+          ),
+        };
+
+        const [
+          total,
+          data,
+        ] = await Promise.all([
+          prisma.category.count({
+            where,
+          }),
+
+          prisma.category.findMany({
+            where,
+            skip,
+            take: limit,
+
+            orderBy: {
+              createdAt:
+                "desc",
+            },
+
+            include: {
+              children: true,
+            },
+          }),
+        ]);
+
+        res.json({
+          success: true,
+
+          data,
+
+          pagination:
+            getMeta(
+              total,
+              page,
+              limit
+            ),
+        });
       }
-    });
+    ),
 
-    res.json({
-      success: true,
-      data: categories
-    });
-  }),
+  getCategoryById:
+    asyncHandler(
+      async (req, res) => {
 
-  getCategoryById: asyncHandler(async (req, res) => {
-    const { id } = req.params;
+        const category =
+          await prisma.category.findUnique(
+            {
+              where: {
+                id: Number(
+                  req.params.id
+                ),
+              },
 
-    const category = await prisma.category.findUnique({
-      where: { id: Number(id) },
-      include: {
-        children: true,
-        products: true
+              include: {
+                children: true,
+                products: true,
+              },
+            }
+          );
+
+        if (!category)
+          throw new ApiError(
+            404,
+            "Category not found"
+          );
+
+        res.json({
+          success: true,
+          data: category,
+        });
       }
-    });
+    ),
 
-    if (!category) throw new ApiError(404, "Category not found");
+  deleteCategory:
+    asyncHandler(
+      async (req, res) => {
 
-    res.json({
-      success: true,
-      data: category
-    });
-  }),
+        const id = Number(
+          req.params.id
+        );
 
-  deleteCategory: asyncHandler(async (req, res) => {
-    const { id } = req.params;
+        const product =
+          await prisma.product.findFirst({
+            where: {
+              categoryId: id,
+            },
+          });
 
-    const productExists = await prisma.product.findFirst({
-      where: { categoryId: Number(id) }
-    });
+        if (product)
+          throw new ApiError(
+            400,
+            "Category has products"
+          );
 
-    if (productExists) {
-      throw new ApiError(
-        400,
-        "Cannot delete category with existing products"
-      );
-    }
+        await prisma.category.delete({
+          where: { id },
+        });
 
-    await prisma.category.delete({
-      where: { id: Number(id) }
-    });
-
-    res.json({
-      success: true,
-      message: "Category deleted successfully"
-    });
-  })
+        res.json({
+          success: true,
+          message:
+            "Category deleted",
+        });
+      }
+    ),
 };

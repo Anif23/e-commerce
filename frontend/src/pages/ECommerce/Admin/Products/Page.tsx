@@ -1,5 +1,9 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import {
+  Package,
+  Star,
+  AlertTriangle,
+} from "lucide-react";
 
 import PageHeader from "../../../../components/Ecommerce/Admin/PageHeader";
 import StatsCard from "../../../../components/Ecommerce/StatsCard";
@@ -8,95 +12,135 @@ import DataTable from "../../../../components/Ecommerce/Admin/DataTable";
 import Pagination from "../../../../components/Ecommerce/Admin/Pagination";
 
 import {
-  Package,
-  Star,
-  AlertTriangle,
-} from "lucide-react";
-
-import {
   useAdminProducts,
   useDeleteProduct,
 } from "../../../../hooks/admin/useAdminProducts";
 
-const PER_PAGE = 8;
-
 const Products = () => {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
-  const deleteProduct = useDeleteProduct();
+  const [
+    searchParams,
+    setSearchParams,
+  ] = useSearchParams();
 
-  const { data: products = [] } =
-    useAdminProducts();
+  const deleteProduct =
+    useDeleteProduct();
 
-  const [search, setSearch] =
-    useState("");
+  // URL FILTERS
+  const page = Number(
+    searchParams.get("page") || 1
+  );
 
-  const [status, setStatus] =
-    useState("all");
+  const search =
+    searchParams.get("search") || "";
 
-  const [page, setPage] =
-    useState(1);
+  const status =
+    searchParams.get("status") || "all";
 
-  const filtered = useMemo(() => {
-    return products.filter((p: any) => {
-      const matchSearch =
-        !search ||
-        p.name.toLowerCase().includes(search.toLowerCase());
+  const updateFilters = (
+    key: string,
+    value: string
+  ) => {
+    const params =
+      new URLSearchParams(
+        searchParams
+      );
 
-      const matchStatus =
+    if (
+      value &&
+      value !== "all"
+    ) {
+      params.set(key, value);
+    } else {
+      params.delete(key);
+    }
+
+    params.set("page", "1");
+
+    setSearchParams(params);
+  };
+
+  const setPage = (
+    value: number
+  ) => {
+    const params =
+      new URLSearchParams(
+        searchParams
+      );
+
+    params.set(
+      "page",
+      value.toString()
+    );
+
+    setSearchParams(params);
+  };
+
+  const { data, isLoading } =
+    useAdminProducts({
+      page,
+      search,
+      isActive:
         status === "all"
-          ? true
-          : status === "active"
-            ? p.isActive
-            : !p.isActive;
-
-      return matchSearch && matchStatus;
+          ? undefined
+          : status === "active",
     });
-  }, [products, search, status]);
 
-  const totalPages = Math.ceil(
-    filtered.length / PER_PAGE
-  );
+  const products =
+    (data as any)?.data || [];
 
-  const rows = filtered.slice(
-    (page - 1) * PER_PAGE,
-    page * PER_PAGE
-  );
+  const pg =
+    (data as any)?.pagination || {};
 
   const columns = [
     {
       header: "Product",
+
       render: (row: any) => (
-        <div className="flex items-center gap-3">
+        <div className="flex gap-3 items-center">
           <img
-            src={row.images?.[0]?.url}
-            className="w-10 h-10 rounded-xl"
+            src={
+              row.images?.[0]
+                ?.url
+            }
+            className="w-10 h-10 rounded-xl object-cover"
           />
+
           <div>
             <p>{row.name}</p>
+
             <p className="text-xs text-gray-400">
-              {row.category?.name}
+              {
+                row.category
+                  ?.name
+              }
             </p>
           </div>
         </div>
       ),
     },
+
     {
       header: "Price",
-      accessor: "price",
+
+      render: (row: any) =>
+        `$${row.price.toLocaleString()}`,
     },
+
     {
       header: "Stock",
       accessor: "stock",
     },
-  ]
+  ];
 
   return (
     <div className="space-y-6">
 
       <PageHeader
         title="Products"
-        subtitle="Manage products and stock"
+        subtitle="Manage products"
         buttonText="Add Product"
         onClick={() =>
           navigate(
@@ -106,67 +150,104 @@ const Products = () => {
       />
 
       <div className="grid md:grid-cols-3 gap-5">
+
         <StatsCard
           title="Products"
-          value={products.length}
+          value={pg.total || 0}
           icon={<Package />}
         />
 
         <StatsCard
           title="Low Stock"
-          value={
-            products.filter(
-              (p: any) =>
-                p.stock <= p.lowStock
-            ).length
+          value={products.filter(
+            (p: any) =>
+              p.stock <=
+              p.lowStock
+          ).length}
+          icon={
+            <AlertTriangle />
           }
-          icon={<AlertTriangle />}
         />
 
         <StatsCard
           title="Featured"
-          value={
-            products.filter(
-              (p: any) =>
-                p.isFeatured
-            ).length
-          }
+          value={products.filter(
+            (p: any) =>
+              p.isFeatured
+          ).length}
           icon={<Star />}
         />
+
       </div>
 
       <FilterBar
         search={search}
-        setSearch={setSearch}
-        total={filtered.length}
+        setSearch={(v) =>
+          updateFilters(
+            "search",
+            v
+          )
+        }
+        total={pg.total || 0}
         selects={[
           {
             value: status,
-            onChange: setStatus,
+
+            onChange: (v) =>
+              updateFilters(
+                "status",
+                v
+              ),
+
             options: [
-              { label: "All", value: "all" },
-              { label: "Active", value: "active" },
-              { label: "Inactive", value: "inactive" },
+              {
+                label: "All",
+                value: "all",
+              },
+              {
+                label: "Active",
+                value:
+                  "active",
+              },
+              {
+                label:
+                  "Inactive",
+                value:
+                  "inactive",
+              },
             ],
           },
         ]}
       />
 
       <DataTable
+        loading={isLoading}
         columns={columns}
-
-        rows={rows}
-
+        rows={products}
         actions={{
-          // onView: (row) => navigate(`/admin/ecommerce/product/${row.id}`),
-          onEdit: (row) => navigate(`/admin/ecommerce/product/${row.id}`),
-          onDelete: (row) => deleteProduct.mutate(row.id),
+          onEdit: (
+            row
+          ) =>
+            navigate(
+              `/admin/ecommerce/product/${row.id}`
+            ),
+
+          onDelete: (
+            row
+          ) =>
+            deleteProduct.mutate(
+              row.id
+            ),
         }}
       />
 
       <Pagination
-        page={page}
-        totalPages={totalPages}
+        page={pg.page}
+        totalPages={
+          pg.totalPages
+        }
+        hasNext={pg.hasNext}
+        hasPrev={pg.hasPrev}
         setPage={setPage}
       />
 

@@ -1,6 +1,3 @@
-import { useEffect, useState } from "react";
-import api from "../../../api/client";
-
 import {
   Package,
   Layers3,
@@ -55,7 +52,7 @@ const Dashboard = () => {
     },
     {
       title: "Revenue",
-      value: `₹${data.totalRevenue}`,
+      value: `${data.totalRevenue}`,
       icon: IndianRupee,
     },
     {

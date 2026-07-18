@@ -26,4 +26,24 @@ export const userAPI = {
   profile: () => api.get("/profile"),
   updateProfile: (data: any) => api.put("/profile/update", data),
   changePassword: (data: any) => api.put("/profile/password", data),
+
+  logout: () => api.post("/auth/logout"),
+
+  notifications: () => api.get("/notifications"),
+  markNotificationRead: (id: number) => api.put(`/notifications/${id}/read`),
+  markAllNotificationRead: () => api.put("/notifications/read-all"),
+  deleteNotification: (id: number) => api.delete(`/notifications/${id}`),
+  deleteAllNotifications: () => api.delete("/notifications/delete-all"),
+
+  addresses: () => api.get("/addresses"),
+  addAddress: (data: any) => api.post("/addresses", data),
+  updateAddress: (id: number, data: any) => api.put(`/addresses/${id}`, data),
+  deleteAddress: (id: number) => api.delete(`/addresses/${id}`),
+  setDefaultAddress: (id: number) => api.patch(`/addresses/${id}/default`),
+
+  createPaypalOrder: (data: any) => api.post("/paypal/create", data),
+  capturePaypalOrder: (data: any) => api.post("/paypal/capture", data),
+
+  cancelOrder: (id: number) => api.post(`/orders/${id}/cancel`),
+  expireOrder: (id: number) => api.post(`/orders/${id}/expire`),
 };

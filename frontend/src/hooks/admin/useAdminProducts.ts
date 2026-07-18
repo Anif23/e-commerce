@@ -1,21 +1,33 @@
-// hooks/admin/useAdminProducts.ts
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminAPI } from "../../api/admin";
 import { qk } from "../../utils/queryKeys";
 import toast from "react-hot-toast";
 import { getErrorMessage } from "../../utils/getErrorMessage";
 
-export const useAdminProducts = () =>
+export const useAdminProducts = (params: any) =>
   useQuery({
-    queryKey: qk.adminProducts,
-    queryFn: () => adminAPI.products().then((r) => r.data.data),
+    queryKey: [...qk.adminProducts, params],
+    queryFn: async () => {
+      const res = await adminAPI.products(params);
+      return res.data;
+    },
+
+    placeholderData: (previousData) => previousData,
   });
 
 export const useAdminProductDetail = (id: number) =>
   useQuery({
-    queryKey: [qk.orders, id],
-    queryFn: () => adminAPI.product(id).then((r) => r.data.data),
+    queryKey: [qk.adminProducts, id],
+
+    queryFn: async () => {
+      const res = await adminAPI.product(id);
+
+      return res.data.data;
+    },
+
     enabled: !!id,
+
+    refetchOnMount: true,
   });
 
 export const useCreateProduct = () => {
@@ -26,7 +38,10 @@ export const useCreateProduct = () => {
 
     onSuccess: () => {
       toast.success("Product Created Successfully");
-      qc.invalidateQueries({ queryKey: qk.adminProducts });
+
+      qc.invalidateQueries({
+        queryKey: qk.adminProducts,
+      });
     },
 
     onError: (err: any) => {
@@ -41,9 +56,16 @@ export const useUpdateProduct = () => {
   return useMutation({
     mutationFn: ({ id, data }: any) => adminAPI.updateProduct(id, data),
 
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       toast.success("Product updated Successfully");
-      qc.invalidateQueries({ queryKey: qk.adminProducts });
+
+      qc.invalidateQueries({
+        queryKey: qk.adminProducts,
+      });
+
+      qc.invalidateQueries({
+        queryKey: [qk.adminProducts, variables.id],
+      });
     },
 
     onError: (err: any) => {
@@ -59,8 +81,11 @@ export const useDeleteProduct = () => {
     mutationFn: (id: number) => adminAPI.deleteProduct(id),
 
     onSuccess: () => {
-      toast.success("Product Deleted ❌");
-      qc.invalidateQueries({ queryKey: qk.adminProducts });
+      toast.success("Product Deleted Successfully");
+
+      qc.invalidateQueries({
+        queryKey: qk.adminProducts,
+      });
     },
 
     onError: (err: any) => {

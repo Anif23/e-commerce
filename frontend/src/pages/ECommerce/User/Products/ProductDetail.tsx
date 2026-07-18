@@ -2,6 +2,7 @@ import { useParams } from "react-router-dom";
 import { useProduct } from "../../../../hooks/user/useProducts";
 import { useAddToCart } from "../../../../hooks/user/useCart";
 import { useToggleWishlist } from "../../../../hooks/user/useWishlist";
+import { useWishlistStore } from "../../../../store/wishlistStore";
 import { useState, useMemo } from "react";
 import ProductGallery from "../../../../components/Ecommerce/User/ProductGallery";
 
@@ -12,6 +13,7 @@ const ProductDetail = () => {
 
   const addToCart = useAddToCart();
   const toggleWishlist = useToggleWishlist();
+  const isWishlisted = useWishlistStore((s) => s.isWishlisted(Number(id)));
 
   const [qty, setQty] = useState(1);
 
@@ -86,21 +88,21 @@ const ProductDetail = () => {
             <div className="flex items-end gap-3">
 
               <div className="text-3xl font-bold text-green-600">
-                ₹{pricing?.finalPrice.toLocaleString()}
+                ${pricing?.finalPrice.toLocaleString()}
               </div>
 
               <div className="text-gray-400 line-through">
-                ₹{product?.price.toLocaleString()}
+                ${product?.price.toLocaleString()}
               </div>
 
               <span className="text-sm text-red-500 font-semibold">
-                Save ₹{pricing?.discountAmount.toLocaleString()}
+                Save ${pricing?.discountAmount.toLocaleString()}
               </span>
 
             </div>
           ) : (
             <div className="text-3xl font-bold text-green-600">
-              ₹{product?.price.toLocaleString()}
+              ${product?.price.toLocaleString()}
             </div>
           )}
         </div>
@@ -110,7 +112,7 @@ const ProductDetail = () => {
             <span className="bg-red-100 text-red-600 text-xs px-3 py-1 rounded-full">
               🔥 {product?.discountType === "PERCENTAGE"
                 ? `${product?.discountValue}% OFF`
-                : `₹${product?.discountValue} OFF`}
+                : `$${product?.discountValue} OFF`}
             </span>
           </div>
         )}
@@ -138,21 +140,30 @@ const ProductDetail = () => {
         <div className="flex gap-4">
 
           <button
-            onClick={() => toggleWishlist.mutate(product.id)}
+            onClick={() => {
+              if (product) {
+                toggleWishlist.mutate(product);
+              }
+            }}
             className="px-4 py-2 border rounded-lg"
           >
-            {product?.isWishlisted ? "❤️ Wishlisted" : "🤍 Wishlist"}
+            {isWishlisted ? "❤️ Wishlisted" : "🤍 Wishlist"}
           </button>
 
           <button
-            disabled={product?.stock === 0 || addToCart.isPending}
+            disabled={product.stock === 0}
             onClick={() =>
               addToCart.mutate(
-                { productId: product.id, quantity: qty },
-                { onSuccess: () => setQty(1) }
+                { product, qty },
+                {
+                  onSuccess: () => { setQty(1) },
+                }
               )
             }
-            className="bg-black text-white px-6 py-2 rounded-lg disabled:opacity-50"
+            className={`px-6 py-2 rounded-lg text-white ${product?.stock === 0 || addToCart.isPending
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-black text-white"
+              }`}
           >
             {addToCart.isPending ? "Adding..." : "Add to Cart"}
           </button>

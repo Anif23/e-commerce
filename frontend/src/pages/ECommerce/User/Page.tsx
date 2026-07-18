@@ -6,9 +6,54 @@ import {
 
 import ProductCard from "../../../components/Ecommerce/User/ProductCard";
 import Footer from "../../../components/Ecommerce/User/Footer";
+import { useState, useEffect } from "react";
+
+const heroSlides = [
+  {
+    title: "Latest Electronics",
+    subtitle: "Smart gadgets & premium devices",
+    image:
+      "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=1600&auto=format&fit=crop",
+  },
+  {
+    title: "Fashion Collection",
+    subtitle: "Discover the latest trends",
+    image:
+      "https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=1600&auto=format&fit=crop",
+  },
+  {
+    title: "Premium Footwear",
+    subtitle: "Comfort meets style",
+    image:
+      "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=1600&auto=format&fit=crop",
+  },
+  {
+    title: "Smart Watches",
+    subtitle: "Stay connected everywhere",
+    image:
+      "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=1600&auto=format&fit=crop",
+  },
+  {
+    title: "Home & Lifestyle",
+    subtitle: "Everything for modern living",
+    image:
+      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?q=80&w=1600&auto=format&fit=crop",
+  },
+];
 
 const UserPage = () => {
   const navigate = useNavigate();
+
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
+    }, 4000);
+
+    return () => clearInterval(timer);
+  }, []);
+
 
   const {
     data: productRes,
@@ -44,18 +89,13 @@ const UserPage = () => {
               <p className="text-sm uppercase tracking-[0.3em] text-gray-400">
                 New Collection 2026
               </p>
-
               <h1 className="mt-4 text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight">
-                Premium
-                <br />
-                Shopping Experience
+                {heroSlides[currentSlide].title}
               </h1>
 
               <p className="mt-5 text-gray-300 max-w-lg text-sm sm:text-base">
-                Explore electronics, fashion, lifestyle products
-                and curated collections built for modern shoppers.
+                {heroSlides[currentSlide].subtitle}. Explore thousands of premium products with secure shopping, fast delivery and exclusive offers.
               </p>
-
               <div className="mt-8 flex flex-col sm:flex-row gap-4">
                 <button
                   onClick={() =>
@@ -102,11 +142,50 @@ const UserPage = () => {
             </div>
 
             {/* image */}
-            <div className="relative z-10">
-              <img
-                src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=1200&auto=format&fit=crop"
-                className="w-full h-75 md:h-130 object-cover rounded-3xl"
-              />
+            <div className="relative z-10 h-75 md:h-130 rounded-3xl overflow-hidden">
+
+              {heroSlides.map((slide, index) => (
+                <img
+                  key={index}
+                  src={slide.image}
+                  className={`absolute inset-0 w-full h-full object-cover transition-all duration-700 ${index === currentSlide
+                    ? "opacity-100 scale-100"
+                    : "opacity-0 scale-110"
+                    }`}
+                />
+              ))}
+
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+
+              <div className="absolute bottom-8 left-8 text-white">
+
+                <h3 className="text-3xl font-bold">
+                  {heroSlides[currentSlide].title}
+                </h3>
+
+                <p className="mt-2 text-white/90">
+                  {heroSlides[currentSlide].subtitle}
+                </p>
+
+              </div>
+
+              {/* Dots */}
+
+              <div className="absolute bottom-5 right-6 flex gap-2">
+
+                {heroSlides.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentSlide(index)}
+                    className={`h-2 rounded-full transition-all ${index === currentSlide
+                      ? "w-8 bg-white"
+                      : "w-2 bg-white/50"
+                      }`}
+                  />
+                ))}
+
+              </div>
+
             </div>
           </div>
         </div>
@@ -147,6 +226,11 @@ const UserPage = () => {
                 </p>
               </button>
             ))}
+            {!categories.length && (
+              <div className="col-span-full text-center text-gray-400 py-10">
+                No categories found.
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -163,15 +247,16 @@ const UserPage = () => {
                 Featured Products
               </h2>
             </div>
-
-            <button
-              onClick={() =>
-                navigate("/user/ecommerce/products")
-              }
-              className="text-sm font-medium hover:text-black text-gray-500"
-            >
-              View All →
-            </button>
+            {products.length > 8 && (
+              <button
+                onClick={() =>
+                  navigate("/user/ecommerce/products")
+                }
+                className="text-sm font-medium hover:text-black text-gray-500"
+              >
+                View All →
+              </button>
+            )}
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -181,6 +266,11 @@ const UserPage = () => {
                 product={product}
               />
             ))}
+            {!products.length && (
+              <div className="col-span-full text-center text-gray-400 py-10">
+                No products found.
+              </div>
+            )}
           </div>
         </div>
       </section>

@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, use } from "react";
 import {
   Search,
   Heart,
@@ -10,14 +10,16 @@ import {
   LogOut,
   Package,
   Home,
+  Bell,
 } from "lucide-react";
 
 import { useAuthStore } from "../../../store/authStore";
-import { useGuestCartStore } from "../../../store/guestCartStore";
-import { useWishlistStore } from "../../../store/guestWishlistStore";
+import { useCartStore } from "../../../store/cartStore";
+import { useWishlistStore } from "../../../store/wishlistStore";
 import { useProfile } from "../../../hooks/user/useProfile";
-import { useCart } from "../../../hooks/user/useCart";
-import { useWishlist } from "../../../hooks/user/useWishlist";
+import NotificationModal from "../NotificationModal";
+import { useNotifications } from "../../../hooks/user/useNotifications";
+import { userAPI } from "../../../api/user";
 
 const UserHeader = () => {
   const { search: urlSearch } =
@@ -25,14 +27,8 @@ const UserHeader = () => {
 
   const navigate = useNavigate();
 
-  const { token, logout } =
+  const { token } =
     useAuthStore();
-
-  const guestCart =
-    useGuestCartStore();
-
-  const guestWishlist =
-    useWishlistStore();
 
   const { data: profile } =
     useProfile();
@@ -49,6 +45,33 @@ const UserHeader = () => {
   const [lastScroll, setLastScroll] =
     useState(0);
 
+  const [showNotifications, setShowNotifications] =
+    useState(false);
+
+  const profileRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        profileRef.current &&
+        !profileRef.current.contains(event.target as Node)
+      ) {
+        setProfileOpen(false);
+      }
+
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const params =
     new URLSearchParams(
       urlSearch
@@ -64,21 +87,23 @@ const UserHeader = () => {
     setSearch(searchFromUrl);
   }, [searchFromUrl]);
 
-  const { data: cart } =
-    useCart();
+  const {
+    data: notifications = [],
+  } = useNotifications();
 
-  const { data: wishlist } =
-    useWishlist();
+  const notificationCount =
+    notifications.filter(
+      (n: any) => !n.isRead
+    ).length;
 
-  const cartCount =
-    token
-      ? cart?.items?.length || 0
-      : guestCart.items?.length || 0;
+  const cartStore =
+    useCartStore();
 
   const wishlistCount =
-    token
-      ? wishlist?.items?.length || 0
-      : guestWishlist.items?.length || 0;
+    useWishlistStore((s) => s.items.length);
+
+  const cartCount =
+    cartStore.getCount();
 
   const nav = [
     {
@@ -177,8 +202,27 @@ const UserHeader = () => {
     }
   };
 
+ const handleLogout =
+  async () => {
+    try {
+      await userAPI.logout();
+    } finally {
+      useAuthStore
+        .getState()
+        .logout();
+
+      window.location.href =
+        "/";
+    }
+  };
+
   return (
     <>
+     <NotificationModal
+    open={showNotifications}
+    onClose={() => setShowNotifications(false)}
+    type="user"
+/>
       {/* HEADER */}
       <header
         className={`fixed top-0 left-0 w-full z-50 border-b border-white/20 bg-white/80 backdrop-blur-xl transition-transform duration-300 ${show
@@ -230,7 +274,7 @@ const UserHeader = () => {
 
               {wishlistCount >
                 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] text-[10px] px-1 bg-red-500 text-white rounded-full flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 min-w-4.5 h-4.5 text-[10px] px-1 bg-red-500 text-white rounded-full flex items-center justify-center">
                     {
                       wishlistCount
                     }
@@ -249,7 +293,7 @@ const UserHeader = () => {
 
               {cartCount >
                 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] text-[10px] px-1 bg-black text-white rounded-full flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 min-w-4.5 h-4.5 text-[10px] px-1 bg-black text-white rounded-full flex items-center justify-center">
                     {
                       cartCount
                     }
@@ -257,16 +301,32 @@ const UserHeader = () => {
                 )}
             </Link>
 
+            {/* NOTIFICATIONS */}
+            <button
+              onClick={() =>
+                setShowNotifications(true)
+              }
+              className="relative p-2 rounded-full hover:bg-gray-100"
+            >
+              <Bell size={20} />
+
+              {notificationCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-4.5 h-4.5 text-[10px] px-1 bg-red-500 text-white rounded-full flex items-center justify-center">
+                  {notificationCount}
+                </span>
+              )}
+            </button>
+
             {/* PROFILE */}
             {token ? (
-              <div className="relative hidden md:block">
+              <div ref={profileRef} className="relative hidden md:block">
                 <button
                   onClick={() =>
                     setProfileOpen(
                       !profileOpen
                     )
                   }
-                  className="w-10 h-10 rounded-full bg-black text-white font-semibold flex items-center justify-center"
+                  className="w-10 h-10 rounded-full bg-black text-white font-semibold flex items-center justify-center cursor-pointer"
                 >
                   {profile?.username?.charAt(
                     0
@@ -289,6 +349,14 @@ const UserHeader = () => {
                       </p>
                     </div>
 
+                    <Link 
+                      to="/user/ecommerce/orders"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100"
+                    >
+                      <Package size={16} />
+                      Orders
+                    </Link>
+
                     <Link
                       to="/user/ecommerce/profile"
                       className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100"
@@ -298,12 +366,7 @@ const UserHeader = () => {
                     </Link>
 
                     <button
-                      onClick={() => {
-                        logout();
-                        navigate(
-                          "/login"
-                        );
-                      }}
+                      onClick={handleLogout}
                       className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-red-500 hover:bg-red-50"
                     >
                       <LogOut size={16} />
@@ -336,10 +399,12 @@ const UserHeader = () => {
 
       {/* MOBILE SIDEBAR */}
       <div
-        className={`fixed top-0 right-0 h-full w-80 bg-white z-50 shadow-2xl transition-transform duration-300 ${open
+        className={`fixed top-0 right-0 h-full w-80 bg-white z-50 shadow-2xl transition-transform duration-300 md:hidden
+          ${open
           ? "translate-x-0"
           : "translate-x-full"
           }`}
+        ref={menuRef}
       >
         <div className="h-16 px-4 border-b flex items-center justify-between">
           <h2 className="font-semibold">

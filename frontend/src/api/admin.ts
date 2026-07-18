@@ -2,23 +2,38 @@ import api from "./client";
 
 export const adminAPI = {
   dashboard: () => api.get("/admin/dashboard"),
-  products: () => api.get("/admin/products"),
+  products: (params: any) => api.get("/admin/products", { params }),
   product: (id: number) => api.get(`/admin/products/${id}`),
   createProduct: (data: FormData) => api.post("/admin/products", data),
   updateProduct: (id: number, data: FormData) =>
     api.put(`/admin/products/${id}`, data),
   deleteProduct: (id: number) => api.delete(`/admin/products/${id}`),
 
-  categories: () => api.get("/admin/categories"),
+  categories: (params: any) => api.get("/admin/categories", { params }),
   category: (id: number) => api.get(`/admin/categories/${id}`),
   createCategory: (data: FormData) => api.post("/admin/categories", data),
   updateCategory: (id: number, data: FormData) =>
     api.put(`/admin/categories/${id}`, data),
   deleteCategory: (id: number) => api.delete(`/admin/categories/${id}`),
 
-  orders: () => api.get("/admin/orders"),
+  orders: (params: any) => api.get("/admin/orders", { params }),
+  orderDetail: (id: number) => api.get(`/admin/orders/${id}`),
   updateOrderStatus: (id: number, data: any) =>
     api.put(`/admin/orders/${id}/status`, data),
   updatePaymentStatus: (id: number, data: any) =>
     api.put(`/admin/orders/${id}/payment`, data),
+
+  customers: (params: any) => api.get("/admin/customers", { params }),
+
+  campaignNotifications: (params: any) =>
+    api.get("/admin/campaigns/notifications", { params }),
+  sendCampaignNotification: (data: any) =>
+    api.post("/admin/campaigns/notifications", data),
+
+  notifications: () => api.get("/admin/notifications"),
+  markNotificationRead: (id: number) =>
+    api.put(`/admin/notifications/${id}/read`),
+  markAllNotificationRead: () => api.put("/admin/notifications/read-all"),
+  deleteNotification: (id: number) => api.delete(`/admin/notifications/${id}/delete`),
+  deleteAllNotifications: () => api.delete("/admin/notifications/delete-all"),
 };

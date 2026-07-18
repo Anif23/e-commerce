@@ -35,12 +35,12 @@ const Sidebar = ({ open, setOpen }: any) => {
     },
     {
       name: "Customers",
-      path: "/admin/ecommerce/users",
+      path: "/admin/ecommerce/customers",
       icon: Users,
     },
     {
-      name: "Notifications",
-      path: "/admin/ecommerce/notifications",
+      name: "Campaigns",
+      path: "/admin/ecommerce/campaigns",
       icon: Bell,
     },
   ];
