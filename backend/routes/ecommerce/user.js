@@ -11,6 +11,7 @@ import { profileController } from "../../controller/ecommerce/profile.js";
 import { notificationController } from "../../controller/ecommerce/notification.js";
 import { addressController } from "../../controller/ecommerce/address.js";
 import { paymentController } from "../../controller/ecommerce/payment.js";
+import { announcementController } from "../../controller/ecommerce/announcements.js";
 
 export const userRoutes = (app) => {
   app.get("/products", optionalAuth, productController.getProducts);
@@ -124,4 +125,15 @@ export const userRoutes = (app) => {
     orderController.expireOrder
   );
 
+  app.get(
+    "/payments",
+    authMiddleware,
+    paymentController.getMyPayments
+  );
+
+  app.get(
+    "/announcements",
+    authMiddleware,
+    announcementController.getAnnouncements
+  );
 }

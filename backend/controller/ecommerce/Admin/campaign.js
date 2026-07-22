@@ -1,119 +1,228 @@
 import { prisma } from "../../../config/prisma.js";
 import { asyncHandler } from "../../../utils/AsyncHandler.js";
 import { io } from "../../../index.js";
+import { ApiError } from "../../../utils/ApiError.js";
+import { getMeta, getPagination } from "../../../utils/pagination.js";
 
 export const campaignController = {
 
-    sendNotification:
-        asyncHandler(
-            async (req, res) => {
+    sendAnnouncement: asyncHandler(async (req, res) => {
 
-                const {
+        const {
+            title,
+            message,
+            startAt,
+            endAt,
+        } = req.body;
+
+        if (startAt && endAt) {
+
+            if (new Date(endAt) < new Date(startAt)) {
+
+                return res.status(400).json({
+
+                    success: false,
+                    message:
+                        "End date must be greater than start date."
+
+                });
+
+            }
+
+        }
+
+        const announcement =
+            await prisma.announcement.create({
+                data: {
                     title,
                     message,
-                    userId,
-                } = req.body;
 
-                // SINGLE USER
-                if (userId) {
+                    startAt: startAt
+                        ? new Date(startAt)
+                        : null,
 
-                    const notification =
-                        await prisma.notification.create({
-                            data: {
-                                title,
-                                message,
-                                userId: Number(userId),
-                            },
-                        });
+                    endAt: endAt
+                        ? new Date(endAt)
+                        : null,
+                },
+            });
 
-                    const socketId =
-                        global.onlineUsers.get(
-                            userId
-                        );
+        io.emit(
+            "announcement",
+            announcement
+        );
 
-                    if (socketId) {
+        res.json({
+            success: true,
+            data: announcement,
+            message:
+                "Announcement published successfully",
+        });
 
-                        io.to(socketId).emit(
-                            "admin_notificaton",
-                            notification
-                        );
-                    }
+    }),
 
-                    return res.json({
-                        success: true,
-                        data: notification,
-                    });
-                }
 
-                // ALL USERS
-                const users =
-                    await prisma.user.findMany({
-                        select: {
-                            id: true,
-                        },
-                    });
+    announcements: asyncHandler(
+        async (req, res) => {
 
-                const notifications =
-                    await prisma.notification.createMany({
-                        data: users.map(
-                            (u) => ({
-                                title,
-                                message,
-                                userId: u.id,
-                            })
-                        ),
-                    });
+            const {
+                search,
+                status,
+                page = 1,
+            } = req.query;
 
-                io.emit(
-                    "admin_notificaton",
-                    {
-                        title,
-                        message,
-                    }
-                );
+            const {
+                limit,
+            } = getPagination(req.query);
 
-                res.json({
-                    success: true,
-                    data: notifications,
+            const currentPage =
+                Number(page);
+
+            const where = {
+
+                ...(search && {
+                    title: {
+                        contains: search,
+                        mode: "insensitive",
+                    },
+                }),
+
+                ...(status === "ACTIVE" && {
+                    isActive: true,
+                }),
+
+                ...(status === "INACTIVE" && {
+                    isActive: false,
+                }),
+
+            };
+
+            const total =
+                await prisma.announcement.count({
+                    where,
                 });
-            }
-        ),
 
-    getAllNotifications:
+            const announcements =
+                await prisma.announcement.findMany({
+
+                    where,
+
+                    skip:
+                        (currentPage - 1) *
+                        limit,
+
+                    take: limit,
+
+                    orderBy: {
+                        createdAt: "desc",
+                    },
+
+                });
+
+            console.log(announcements, 'sjsj')
+
+            res.json({
+
+                success: true,
+
+                data: announcements,
+
+                pagination:
+                    getMeta(
+                        total,
+                        currentPage,
+                        limit
+                    ),
+
+            });
+
+        }
+    ),
+
+    updateAnnouncementStatus:
         asyncHandler(
             async (req, res) => {
 
-                const {
-                    userId,
-                } = req.query;
+                const { id } =
+                    req.params;
 
-                const notifications =
-                    await prisma.notification.findMany({
+                const announcement =
+                    await prisma.announcement.findUnique({
                         where: {
-                            ...(userId && {
-                                userId: Number(userId),
-                            }),
+                            id: Number(id),
+                        },
+                    });
+
+                if (!announcement) {
+
+                    throw new ApiError(
+                        404,
+                        "Announcement not found"
+                    );
+
+                }
+
+                const data =
+                    await prisma.announcement.update({
+                        where: {
+                            id: Number(id),
                         },
 
-                        include: {
-                            user: {
-                                select: {
-                                    id: true,
-                                    username: true,
-                                    email: true,
-                                },
-                            },
-                        },
-
-                        orderBy: {
-                            createdAt: "desc",
+                        data: {
+                            isActive:
+                                !announcement.isActive,
                         },
                     });
 
                 res.json({
                     success: true,
-                    data: notifications,
+                    data,
+                    message:
+                        data.isActive
+                            ? "Announcement activated successfully."
+                            : "Announcement deactivated successfully.",
                 });
+
             }
         ),
-}
+
+
+    deleteAnnouncement:
+        asyncHandler(
+            async (req, res) => {
+
+                const { id } =
+                    req.params;
+
+                const announcement =
+                    await prisma.announcement.findUnique({
+                        where: {
+                            id: Number(id),
+                        },
+                    });
+
+                if (!announcement) {
+
+                    throw new ApiError(
+                        404,
+                        "Announcement not found"
+                    );
+
+                }
+
+                await prisma.announcement.delete({
+                    where: {
+                        id: Number(id),
+                    },
+                });
+
+                res.json({
+                    success: true,
+                    message:
+                        "Announcement deleted successfully.",
+                });
+
+            }
+        ),
+
+};

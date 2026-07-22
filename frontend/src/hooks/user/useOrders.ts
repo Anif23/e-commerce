@@ -4,11 +4,17 @@ import { qk } from "../../utils/queryKeys";
 import { socket } from "../../lib/socket";
 import { useEffect } from "react";
 
-export const useOrders = () =>
+export const useOrders = (params: any) =>
   useQuery({
-    queryKey: qk.orders,
-    queryFn: () => userAPI.orders().then((r) => r.data.data),
+    queryKey: [qk.orders, params],
+
+    queryFn: async () => {
+      const res = await userAPI.orders(params);
+
+      return res.data;
+    },
   });
+
 
 export const useOrder = (id: number) =>
   useQuery({

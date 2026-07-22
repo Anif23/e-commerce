@@ -6,6 +6,7 @@ import {
   ShoppingCart,
   Users,
   Bell,
+  DollarSign,
   X,
 } from "lucide-react";
 
@@ -39,6 +40,11 @@ const Sidebar = ({ open, setOpen }: any) => {
       icon: Users,
     },
     {
+      name: "Payments",
+      path: "/admin/ecommerce/payments",
+      icon: DollarSign,
+    },
+    {
       name: "Campaigns",
       path: "/admin/ecommerce/campaigns",
       icon: Bell,
@@ -48,11 +54,10 @@ const Sidebar = ({ open, setOpen }: any) => {
   return (
     <>
       <aside
-        className={`fixed lg:static top-0 left-0 z-50 h-screen w-72 bg-white border-r border-gray-200 shadow-xl lg:shadow-none transition-transform duration-300 ${
-          open
+        className={`fixed lg:static top-0 left-0 z-50 h-screen w-72 bg-white border-r border-gray-200 shadow-xl lg:shadow-none transition-transform duration-300 ${open
             ? "translate-x-0"
             : "-translate-x-full lg:translate-x-0"
-        }`}
+          }`}
       >
         {/* HEADER */}
         <div className="h-20 px-6 border-b border-gray-100 flex items-center justify-between">
@@ -85,11 +90,10 @@ const Sidebar = ({ open, setOpen }: any) => {
                 key={item.path}
                 to={item.path}
                 onClick={() => setOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-2xl font-medium transition ${
-                  active
+                className={`flex items-center gap-3 px-4 py-3 rounded-2xl font-medium transition ${active
                     ? "bg-black text-white shadow-lg"
                     : "text-gray-700 hover:bg-gray-100"
-                }`}
+                  }`}
               >
                 <Icon size={18} />
                 {item.name}

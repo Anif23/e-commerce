@@ -64,11 +64,11 @@ const PaypalButton = ({
                     });
 
                     toast.success(
-                        "Payment Successful"
+                        "Payment Successful 🎉"
                     );
 
                     navigate(
-                        "/user/ecommerce/orders"
+                        `/user/ecommerce/payment-success?orderId=${orderId}`
                     );
 
                 } catch (error) {

@@ -7,6 +7,8 @@ import {
 import ProductCard from "../../../components/Ecommerce/User/ProductCard";
 import Footer from "../../../components/Ecommerce/User/Footer";
 import { useState, useEffect } from "react";
+import AnnouncementSlider from "./home/Announcement";
+import { useAnnouncements } from "../../../hooks/user/useAnnouncements"
 
 const heroSlides = [
   {
@@ -45,6 +47,9 @@ const UserPage = () => {
   const navigate = useNavigate();
 
   const [currentSlide, setCurrentSlide] = useState(0);
+
+  const { data } = useAnnouncements();
+  const announcements = data?.data || [];
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -190,6 +195,8 @@ const UserPage = () => {
           </div>
         </div>
       </section>
+
+      <AnnouncementSlider announcements={announcements} />
 
       {/* ================= CATEGORIES ================= */}
       <section className="mt-14">

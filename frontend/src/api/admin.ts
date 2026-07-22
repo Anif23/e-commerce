@@ -25,15 +25,19 @@ export const adminAPI = {
 
   customers: (params: any) => api.get("/admin/customers", { params }),
 
-  campaignNotifications: (params: any) =>
-    api.get("/admin/campaigns/notifications", { params }),
-  sendCampaignNotification: (data: any) =>
-    api.post("/admin/campaigns/notifications", data),
+  createCampaign: (data: any) => api.post("/admin/campaigns", data),
+  getCampaigns: (params?: any) => api.get("/admin/campaigns", { params }),
+  updateCampaignStatus: (id: number, isActive: boolean) =>
+    api.patch(`/admin/campaigns/${id}/status`, { isActive }),
+  deleteCampaign: (id: number) => api.delete(`/admin/campaigns/${id}`),
 
   notifications: () => api.get("/admin/notifications"),
   markNotificationRead: (id: number) =>
     api.put(`/admin/notifications/${id}/read`),
   markAllNotificationRead: () => api.put("/admin/notifications/read-all"),
-  deleteNotification: (id: number) => api.delete(`/admin/notifications/${id}/delete`),
+  deleteNotification: (id: number) =>
+    api.delete(`/admin/notifications/${id}/delete`),
   deleteAllNotifications: () => api.delete("/admin/notifications/delete-all"),
+
+  getAllTransactions: (params: any) => api.get("/admin/payments", { params }),
 };

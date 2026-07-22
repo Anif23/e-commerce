@@ -17,44 +17,50 @@ import FilterBar from "../../../../components/Ecommerce/Admin/FilterBar";
 
 import {
   useAdminCampaigns,
-  useSendCampaignNotification,
-  useAdminCustomers,
-} from "../../../../hooks/admin/useAdminCustomer";
+  useAdminCreateCampaign,
+  useUpdateCampaignStatus,
+  useDeleteCampaign
+} from "../../../../hooks/admin/useAdminCampaigns";
+import Pagination from "../../../../components/Ecommerce/Admin/Pagination";
 
-const Notifications = () => {
+const Campaigns = () => {
   const [search, setSearch] =
     useState("");
 
-  const [userId, setUserId] =
-    useState("all");
+  const [page, setPage] =
+    useState(1);
 
-  const { data: usersData } =
-    useAdminCustomers({
-      search,
-    });
+  const [status, setStatus] =
+    useState("ALL");
 
-  const users =
-    usersData?.data || [];
-
-  const { data: notificationsData } =
+  const { data, isLoading } =
     useAdminCampaigns({
-      userId:
-        userId === "all"
-          ? undefined
-          : userId,
+      page,
+      search,
+      status,
     });
 
   const notifications =
-    notificationsData?.data || [];
+    data?.data || [];
 
-  const sendNotification =
-    useSendCampaignNotification();
+  const pg =
+    data?.pagination || {};
+
+  const createCampaign =
+    useAdminCreateCampaign();
+
+  const updateStatus =
+    useUpdateCampaignStatus();
+
+  const deleteCampaign =
+    useDeleteCampaign();
 
   const [form, setForm] =
     useState({
       title: "",
       message: "",
-      userId: "",
+      startAt: "",
+      endAt: "",
     });
 
   const updateField = (
@@ -69,48 +75,28 @@ const Notifications = () => {
   const handleSubmit = (
     e: React.FormEvent
   ) => {
+
     e.preventDefault();
 
-    sendNotification.mutate(
-      {
-        ...form,
-        userId:
-          form.userId || undefined,
-      },
+    createCampaign.mutate(
+      form,
       {
         onSuccess: () => {
+
           setForm({
             title: "",
             message: "",
-            userId: "",
+            startAt: "",
+            endAt: "",
           });
+
         },
       }
     );
+
   };
 
-
   const columns = [
-    {
-      header: "User",
-      render: (row: any) => (
-        <div>
-          <p className="font-medium">
-            {
-              row.user
-                ?.username
-            }
-          </p>
-
-          <p className="text-xs text-gray-400">
-            {
-              row.user
-                ?.email
-            }
-          </p>
-        </div>
-      ),
-    },
 
     {
       header: "Title",
@@ -119,45 +105,105 @@ const Notifications = () => {
 
     {
       header: "Message",
-      accessor: "message",
-    }
+
+      render: (row: any) => (
+        <p className="max-w-xs truncate">
+          {row.message}
+        </p>
+      )
+    },
+
+    {
+      header: "Start",
+
+      render: (row: any) =>
+        row.startAt
+          ? new Date(
+            row.startAt
+          ).toLocaleString()
+          : "-"
+    },
+
+    {
+      header: "End",
+
+      render: (row: any) =>
+        row.endAt
+          ? new Date(
+            row.endAt
+          ).toLocaleString()
+          : "-"
+    },
+
+    {
+      header: "Status",
+
+      render: (row: any) => (
+
+        <span
+          className={`px-2 py-1 rounded-full text-xs font-medium ${row.isActive
+            ? "bg-green-100 text-green-700"
+            : "bg-red-100 text-red-700"
+            }`}
+        >
+          {
+            row.isActive
+              ? "Active"
+              : "Inactive"
+          }
+        </span>
+
+      )
+    },
+
   ];
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Push Notifications"
-        subtitle="Send realtime notifications to customers"
+        title="Announcements"
+        subtitle="Manage announcements across your ecommerce platform"
       />
-
       <div className="grid md:grid-cols-4 gap-5">
         <StatsCard
-          title="Users"
+          title="Announcements"
+          value={pg.total || 0}
+          icon={<Megaphone />}
+        />
+
+        <StatsCard
+          title="Active"
           value={
-            users.length
+            notifications.filter(
+              (item: any) =>
+                item.isActive
+            ).length
+          }
+          icon={<BellRing />}
+        />
+
+        <StatsCard
+          title="Inactive"
+          value={
+            notifications.filter(
+              (item: any) =>
+                !item.isActive
+            ).length
           }
           icon={<Users />}
         />
 
         <StatsCard
-          title="Campaign"
-          value="Live"
-          icon={
-            <Megaphone />
+          title="Scheduled"
+          value={
+            notifications.filter(
+              (item: any) =>
+                item.startAt &&
+                new Date(
+                  item.startAt
+                ) > new Date()
+            ).length
           }
-        />
-
-        <StatsCard
-          title="Push Service"
-          value="Connected"
-          icon={
-            <BellRing />
-          }
-        />
-
-        <StatsCard
-          title="Delivery"
-          value="Realtime"
           icon={<Send />}
         />
       </div>
@@ -167,122 +213,102 @@ const Notifications = () => {
           handleSubmit
         }
       >
-        <SectionCard title="Send Notification">
-          <div className="space-y-4">
-            <select
-              value={
-                form.userId
-              }
-              onChange={(
-                e
-              ) =>
-                updateField(
-                  "userId",
-                  e.target
-                    .value
-                )
-              }
-              className="w-full border rounded-2xl px-4 h-12"
-            >
-              <option value="">
-                All Users
-              </option>
+        <SectionCard
+          title="Create Announcement"
+        >
 
-              {users.map(
-                (
-                  user: any
-                ) => (
-                  <option
-                    key={
-                      user.id
-                    }
-                    value={
-                      user.id
-                    }
-                  >
-                    {
-                      user.username
-                    }
-                  </option>
-                )
-              )}
-            </select>
+          <div className="grid md:grid-cols-2 gap-4">
 
             <InputField
               label="Title"
-              value={
-                form.title
+              value={form.title}
+              onChange={(e) =>
+                updateField("title", e.target.value)
               }
-              onChange={(
-                e
-              ) =>
-                updateField(
-                  "title",
-                  e.target
-                    .value
-                )
-              }
-              placeholder="Big Sale 🔥"
+              placeholder="Summer Sale 🔥"
             />
 
+            <InputField
+              type="datetime-local"
+              label="Start Date"
+              value={form.startAt}
+              onChange={(e) =>
+                updateField("startAt", e.target.value)
+              }
+            />
+
+            <InputField
+              type="datetime-local"
+              label="End Date"
+              value={form.endAt}
+              onChange={(e) =>
+                updateField("endAt", e.target.value)
+              }
+            />
+
+          </div>
+
+          <div className="mt-4">
             <TextAreaField
               label="Message"
-              value={
-                form.message
+              value={form.message}
+              onChange={(e) =>
+                updateField("message", e.target.value)
               }
-              onChange={(
-                e
-              ) =>
-                updateField(
-                  "message",
-                  e.target
-                    .value
-                )
-              }
+              placeholder="Get up to 50% off on selected products."
             />
-
-            <button className="h-12 px-6 rounded-2xl bg-black text-white font-medium">
-              Send Notification
-            </button>
           </div>
+
+          <button
+            type="submit"
+            className="mt-5 h-12 px-6 rounded-2xl bg-black text-white font-medium"
+          >
+            Publish Announcement
+          </button>
+
         </SectionCard>
       </form>
 
       <SectionCard title="Notification History">
         <FilterBar
           search={search}
-          setSearch={
-            setSearch
-          }
-          total={
-            notifications.length
-          }
+          setSearch={(value) => {
+
+            setSearch(value);
+
+            setPage(1);
+
+          }}
+          total={pg.total || 0}
           selects={[
             {
-              value:
-                userId,
-              onChange:
-                setUserId,
+              value: status,
+
+              onChange: (value) => {
+
+                setStatus(value);
+
+                setPage(1);
+
+              },
+
               options: [
+
                 {
-                  label:
-                    "All Users",
-                  value:
-                    "all",
+                  label: "All",
+                  value: "ALL",
                 },
 
-                ...users.map(
-                  (
-                    user: any
-                  ) => ({
-                    label:
-                      user.username,
-                    value:
-                      String(
-                        user.id
-                      ),
-                  })
-                ),
+                {
+                  label: "Active",
+                  value: "ACTIVE",
+                },
+
+                {
+                  label: "Inactive",
+                  value: "INACTIVE",
+                },
+
               ],
             },
           ]}
@@ -290,17 +316,46 @@ const Notifications = () => {
 
         <div className="mt-5">
           <DataTable
-            columns={
-              columns
-            }
-            rows={
-              notifications
-            }
+            loading={isLoading}
+            columns={columns}
+            rows={notifications}
+            actions={{
+
+              onEdit: (row: any) => {
+
+                updateStatus.mutate({
+                  id: row.id,
+                  isActive:
+                    !row.isActive,
+
+                });
+              },
+
+              onDelete: (row: any) => {
+                deleteCampaign.mutate(
+                  row.id
+                );
+
+              },
+            }}
           />
         </div>
+        <Pagination
+          page={pg.page || 1}
+          totalPages={
+            pg.totalPages || 1
+          }
+          hasNext={
+            pg.hasNext
+          }
+          hasPrev={
+            pg.hasPrev
+          }
+          setPage={setPage}
+        />
       </SectionCard>
     </div>
   );
 };
 
-export default Notifications;
+export default Campaigns;

@@ -10,6 +10,8 @@ export const qk = {
   notifications: ["user-notifications"],
   addresses: ["user-addresses"],
   paypalOrder: ["paypal-order"],
+  payments: ["user-payments"],
+  announcements: ["announcements"],
   
   adminDashboard: ["admin-dasboard"],
   adminProducts: ["admin-products"],
@@ -18,4 +20,5 @@ export const qk = {
   adminCustomers: ["admin-customers"],
   adminCampaigns: ["admin-campaigns"],
   adminNotifications: ["admin-notifications"],
+  adminPayments: ["admin-payments"]
 };

@@ -14,7 +14,7 @@ export const userAPI = {
 
   checkout: (data: any) => api.post("/checkout", data),
 
-  orders: () => api.get("/orders"),
+  orders: (params: any) => api.get("/orders", {params}),
   order: (id: number) => api.get(`/orders/${id}`),
 
   wishlist: () => api.get("/wishlist"),
@@ -46,4 +46,8 @@ export const userAPI = {
 
   cancelOrder: (id: number) => api.post(`/orders/${id}/cancel`),
   expireOrder: (id: number) => api.post(`/orders/${id}/expire`),
+
+  myPayments: (params: any) => api.get("/payments", { params }),
+
+  announcements:()=> api.get("/announcements"),
 };

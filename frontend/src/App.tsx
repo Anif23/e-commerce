@@ -32,6 +32,9 @@ import CustomersPage from "./pages/ECommerce/Admin/Customers/Page";
 import CampaignsPage from "./pages/ECommerce/Admin/Campaigns/Page";
 import { useEffect } from "react";
 import AdminProfile from "./pages/ECommerce/Admin/Profile/Page";
+import AdminPayments from "./pages/ECommerce/Admin/Payments/Page";
+import UserPayments from "./pages/ECommerce/User/Payments/Page";
+import PaymentSuccess from "./pages/ECommerce/User/Cart/PaymentSuccess";
 
 function App() {
 
@@ -74,6 +77,8 @@ function App() {
               <Route path="orders" element={<UserOrders />} />
               <Route path="orders/:id" element={<UserOrderDetail />} />
               <Route path="profile" element={<UserProfile />} />
+              <Route path="payments" element={<UserPayments />} />
+              <Route path="payment-success" element={<PaymentSuccess />} />
             </Route>
           </Route>
 
@@ -92,6 +97,7 @@ function App() {
               <Route path="customers" element={<CustomersPage />} />
               <Route path="campaigns" element={<CampaignsPage />} />
               <Route path="profile" element={<AdminProfile />} />
+              <Route path="payments" element={<AdminPayments />} />
             </Route>
           </Route>
 

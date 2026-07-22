@@ -9,6 +9,7 @@ import {
   X,
   LogOut,
   Package,
+  DollarSign,
   Home,
   Bell,
 } from "lucide-react";
@@ -202,27 +203,27 @@ const UserHeader = () => {
     }
   };
 
- const handleLogout =
-  async () => {
-    try {
-      await userAPI.logout();
-    } finally {
-      useAuthStore
-        .getState()
-        .logout();
+  const handleLogout =
+    async () => {
+      try {
+        await userAPI.logout();
+      } finally {
+        useAuthStore
+          .getState()
+          .logout();
 
-      window.location.href =
-        "/";
-    }
-  };
+        window.location.href =
+          "/";
+      }
+    };
 
   return (
     <>
-     <NotificationModal
-    open={showNotifications}
-    onClose={() => setShowNotifications(false)}
-    type="user"
-/>
+      <NotificationModal
+        open={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        type="user"
+      />
       {/* HEADER */}
       <header
         className={`fixed top-0 left-0 w-full z-50 border-b border-white/20 bg-white/80 backdrop-blur-xl transition-transform duration-300 ${show
@@ -349,12 +350,20 @@ const UserHeader = () => {
                       </p>
                     </div>
 
-                    <Link 
+                    <Link
                       to="/user/ecommerce/orders"
                       className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100"
                     >
                       <Package size={16} />
                       Orders
+                    </Link>
+
+                    <Link
+                      to="/user/ecommerce/payments"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100"
+                    >
+                      <DollarSign size={16} />
+                      Transaction History
                     </Link>
 
                     <Link
@@ -401,8 +410,8 @@ const UserHeader = () => {
       <div
         className={`fixed top-0 right-0 h-full w-80 bg-white z-50 shadow-2xl transition-transform duration-300 md:hidden
           ${open
-          ? "translate-x-0"
-          : "translate-x-full"
+            ? "translate-x-0"
+            : "translate-x-full"
           }`}
         ref={menuRef}
       >

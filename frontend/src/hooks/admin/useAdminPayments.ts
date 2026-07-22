@@ -1,14 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import toast from "react-hot-toast";
 import { adminAPI } from "../../api/admin";
 import { qk } from "../../utils/queryKeys";
 
-export const useAdminCustomers = (params: any) =>
+export const useAdminPayments = (params: any) =>
   useQuery({
-    queryKey: [qk.adminCustomers, params],
+    queryKey: [qk.adminPayments, params],
 
     queryFn: async () => {
-      const res = await adminAPI.customers(params);
+      const res = await adminAPI.getAllTransactions(params);
 
       return res.data;
     },

@@ -101,12 +101,12 @@ const Customers = () => {
       <PageHeader
         title="Customers"
         subtitle="Manage and monitor customer activity"
-        buttonText="Push Notifications"
-        onClick={() =>
-          navigate(
-            "/admin/ecommerce/notifications"
-          )
-        }
+        // buttonText="Push Notifications"
+        // onClick={() =>
+        //   navigate(
+        //     "/admin/ecommerce/notifications"
+        //   )
+        // }
       />
 
       <div className="grid md:grid-cols-4 gap-5">

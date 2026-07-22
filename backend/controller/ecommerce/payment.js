@@ -4,6 +4,7 @@ import { OrdersController } from "@paypal/paypal-server-sdk";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiError } from "../../utils/apiError.js";
 import { io } from "../../index.js";
+import { getPagination, getMeta } from "../../utils/pagination.js";
 
 const ordersController = new OrdersController(paypalClient);
 
@@ -26,7 +27,9 @@ export const paymentController = {
             throw new ApiError(404, "Order not found");
         }
 
-
+        if (order.status === "PAID") {
+            throw new ApiError(400, "Order is already paid");
+        }
 
         const collect = {
             body: {
@@ -70,8 +73,6 @@ export const paymentController = {
 
         const { paypalOrderId } = req.body;
 
-        console.log("paypalOrderId", paypalOrderId);
-
         if (!paypalOrderId) {
             throw new ApiError(400, "paypalOrderId is required");
         }
@@ -88,6 +89,10 @@ export const paymentController = {
                 }
             }
         });
+
+        if (payment.status === "SUCCESS") {
+            throw new ApiError(400, "Payment already captured");
+        }
 
         if (!payment) {
             throw new ApiError(404, "Payment not found");
@@ -131,6 +136,7 @@ export const paymentController = {
                     },
                     data: {
                         status: "SUCCESS",
+                        provider: "PAYPAL",
                         paymentId: capture.id,
                         payerId: payer.payerId,
                         payerEmail: payer.emailAddress,
@@ -187,8 +193,111 @@ export const paymentController = {
         res.json({
             success: true,
             message: "Your payment was successful and your order has been placed.",
+            transaction: {
+                transactionId: capture.id,
+                amount: capture.amount.value,
+                currency: capture.amount.currencyCode,
+                status: capture.status,
+                payerEmail: payer.emailAddress,
+            },
         });
 
-    })
+    }),
+
+
+    getMyPayments: asyncHandler(
+        async (req, res) => {
+
+            const {
+                page = 1,
+                search,
+                status,
+                provider,
+            } = req.query;
+
+            const { limit } =
+                getPagination(req.query);
+
+            const currentPage =
+                Number(page);
+
+            const where = {
+
+                order: {
+                    userId: req.user.id,
+                },
+
+                ...(status && {
+                    status,
+                }),
+
+                ...(provider && {
+                    provider,
+                }),
+
+                ...(search && {
+                    OR: [
+                        {
+                            paymentId: {
+                                contains: search,
+                                mode: "insensitive",
+                            },
+                        },
+                        {
+                            payerEmail: {
+                                contains: search,
+                                mode: "insensitive",
+                            },
+                        },
+                    ],
+                }),
+            };
+
+            const total =
+                await prisma.payment.count({
+                    where,
+                });
+
+            const data =
+                await prisma.payment.findMany({
+
+                    where,
+
+                    skip:
+                        (currentPage - 1) *
+                        limit,
+
+                    take: limit,
+
+                    orderBy: {
+                        createdAt: "desc",
+                    },
+
+                    include: {
+                        order: {
+                            include: {
+                                items: {
+                                    include: {
+                                        product: true,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                });
+
+            res.json({
+                success: true,
+                data,
+                pagination:
+                    getMeta(
+                        total,
+                        currentPage,
+                        limit
+                    ),
+            });
+        }
+    )
+
 
 };

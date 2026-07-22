@@ -8,6 +8,7 @@ import { adminOrderController } from "../../controller/ecommerce/Admin/order.js"
 import { adminCustomerController } from "../../controller/ecommerce/Admin/customer.js";
 import { campaignController } from "../../controller/ecommerce/Admin/campaign.js";
 import { adminNotificationController } from "../../controller/ecommerce/Admin/notification.js";
+import { adminPaymentController } from "../../controller/ecommerce/Admin/payment.js";
 
 export const adminRoutes = (app) => {
 
@@ -128,19 +129,32 @@ export const adminRoutes = (app) => {
     )
 
     app.post(
-        "/admin/campaigns/notifications",
+        "/admin/campaigns",
         authMiddleware,
         adminMiddleware,
-        campaignController.sendNotification
-    )
+        campaignController.sendAnnouncement
+    );
 
     app.get(
-        "/admin/campaigns/notifications",
+        "/admin/campaigns",
         authMiddleware,
         adminMiddleware,
-        campaignController.getAllNotifications
-    )
+        campaignController.announcements
+    );
 
+    app.patch(
+        "/admin/campaigns/:id/status",
+        authMiddleware,
+        adminMiddleware,
+        campaignController.updateAnnouncementStatus
+    );
+
+    app.delete(
+        "/admin/campaigns/:id",
+        authMiddleware,
+        adminMiddleware,
+        campaignController.deleteAnnouncement
+    );
     app.get(
         "/admin/notifications",
         authMiddleware,
@@ -174,5 +188,12 @@ export const adminRoutes = (app) => {
         authMiddleware,
         adminMiddleware,
         adminNotificationController.deleteAllNotifications
+    )
+
+    app.get(
+        "/admin/payments",
+        authMiddleware,
+        adminMiddleware,
+        adminPaymentController.getAllPayments
     )
 };

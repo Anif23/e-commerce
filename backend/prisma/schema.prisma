@@ -154,6 +154,9 @@ model Payment {
   payerId String?
   payerEmail String?
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   order Order @relation(fields: [orderId], references: [id])
 }
 
@@ -292,13 +295,15 @@ model Coupon {
 }
 
 model Announcement {
-  id       Int     @id @default(autoincrement())
-  title    String
-  message  String
-  isActive Boolean @default(true)
+  id        Int @id @default(autoincrement())
 
-  startAt DateTime?
-  endAt   DateTime?
+  title     String
+  message   String
+
+  isActive  Boolean @default(true)
+
+  startAt   DateTime?
+  endAt     DateTime?
 
   createdAt DateTime @default(now())
 }

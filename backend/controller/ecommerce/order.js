@@ -2,32 +2,82 @@ import { prisma } from "../../config/prisma.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiError } from "../../utils/apiError.js";
 import { io } from "../../index.js";
+import { getMeta, getPagination } from "../../utils/pagination.js";
 
 export const orderController = {
 
     getUserOrders: asyncHandler(async (req, res) => {
-        const orders = await prisma.order.findMany({
-            where: { userId: req.user.id },
-            include: {
-                items: {
-                    include: {
-                        product: {
-                            include: {
-                                images: true
-                            }
-                        }
-                    }
+
+        const {
+            page = 1,
+            search,
+            status,
+        } = req.query;
+
+        const { limit } =
+            getPagination(req.query);
+
+        const currentPage =
+            Number(page);
+
+        const orderId = Number(search);
+
+        const where = {
+            userId: req.user.id,
+
+            ...(status && { status }),
+
+            ...(search &&
+                !isNaN(orderId) && {
+                id: orderId,
+            }),
+        };
+
+        const total =
+            await prisma.order.count({
+                where,
+            });
+
+        const data =
+            await prisma.order.findMany({
+                where,
+
+                skip:
+                    (currentPage - 1) *
+                    limit,
+
+                take: limit,
+
+                orderBy: {
+                    createdAt: "desc",
                 },
-                payment: true,
-            },
-            orderBy: { createdAt: "desc" }
-        });
+
+                include: {
+                    payment: true,
+
+                    items: {
+                        include: {
+                            product: {
+                                include: {
+                                    images: true,
+                                },
+                            },
+                        },
+                    },
+                },
+            });
 
         res.json({
             success: true,
-            count: orders.length,
-            data: orders
+            data,
+
+            pagination: getMeta(
+                total,
+                currentPage,
+                limit
+            ),
         });
+
     }),
 
     getOrderById: asyncHandler(async (req, res) => {
