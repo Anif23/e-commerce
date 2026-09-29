@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:journey": "node ./scripts/journey-check.mjs",
+    "check:render": "node ./scripts/render-smoke.mjs"
   },
   "dependencies": {
     "@paypal/react-paypal-js": "^10.1.1",
