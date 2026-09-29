@@ -37,7 +37,8 @@ export const loadStripeJs = (): Promise<StripeFactory> => {
 
     if (existing) {
       const factory = (window as unknown as { Stripe?: StripeFactory }).Stripe;
-      factory ? resolve(factory) : reject(new Error('Stripe.js failed to initialise'));
+      if (factory) resolve(factory);
+      else reject(new Error('Stripe.js failed to initialise'));
       return;
     }
 
@@ -47,7 +48,8 @@ export const loadStripeJs = (): Promise<StripeFactory> => {
 
     script.onload = () => {
       const factory = (window as unknown as { Stripe?: StripeFactory }).Stripe;
-      factory ? resolve(factory) : reject(new Error('Stripe.js failed to initialise'));
+      if (factory) resolve(factory);
+      else reject(new Error('Stripe.js failed to initialise'));
     };
 
     script.onerror = () => {

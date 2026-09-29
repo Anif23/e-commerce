@@ -1,27 +1,16 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
-/**
- * Cookie consent for Asnif Store.
- *
- * - The choice is stored in localStorage *and* mirrored into a first-party
- *   cookie (`asnif_consent`) so server-side code and any reverse proxy can read it.
- * - Consent is versioned: bump CONSENT_VERSION when a new cookie category is
- *   introduced and the banner is shown again to everyone.
- * - Optional analytics (Google Analytics / Plausible-style snippet) only loads
- *   after analytics consent is granted, and is removed again if it is revoked.
- */
-
-export type CookieCategory = 'essential' | 'preferences' | 'analytics' | 'marketing';
-
-export type Consent = Record<CookieCategory, boolean>;
-
-const STORAGE_KEY = 'asnif.consent';
-const COOKIE_NAME = 'asnif_consent';
-const CONSENT_VERSION = 1;
-const MAX_AGE_DAYS = 365;
-
-const DENY_ALL: Consent = { essential: true, preferences: false, analytics: false, marketing: false };
-const ALLOW_ALL: Consent = { essential: true, preferences: true, analytics: true, marketing: true };
+import {
+  ALLOW_ALL,
+  CONSENT_VERSION,
+  COOKIE_NAME,
+  ConsentContext,
+  DENY_ALL,
+  MAX_AGE_DAYS,
+  STORAGE_KEY,
+  type Consent,
+  type ConsentContextValue,
+} from './cookieConsent';
 
 const readStored = (): (Consent & { decidedAt: string; version: number }) | null => {
   try {
@@ -58,21 +47,10 @@ const setCookie = (consent: Consent) => {
   document.cookie = `${COOKIE_NAME}=${value}; max-age=${MAX_AGE_DAYS * 24 * 60 * 60}; path=/; SameSite=Lax`;
 };
 
-type ConsentContextValue = {
-  /** null until a decision exists (or the stored decision is from an older policy version). */
-  consent: Consent | null;
-  hasDecided: boolean;
-  acceptAll: () => void;
-  rejectOptional: () => void;
-  save: (next: Omit<Consent, 'essential'>) => void;
-  /** Opens the preferences dialog from the footer / cookie policy page. */
-  reopen: () => void;
-  closeDialog: () => void;
-  dialogOpen: boolean;
-};
-
-const ConsentContext = createContext<ConsentContextValue | null>(null);
-
+/**
+ * Holds the visitor's cookie choice, persists it (localStorage + cookie) and
+ * loads optional analytics only after consent — removing it again on revoke.
+ */
 export function CookieConsentProvider({ children }: { children: React.ReactNode }) {
   const [consent, setConsent] = useState<Consent | null>(() => (typeof window === 'undefined' ? null : readStored()));
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -88,10 +66,7 @@ export function CookieConsentProvider({ children }: { children: React.ReactNode 
   const acceptAll = useCallback(() => persist(ALLOW_ALL), [persist]);
   const rejectOptional = useCallback(() => persist(DENY_ALL), [persist]);
 
-  const save = useCallback(
-    (next: Omit<Consent, 'essential'>) => persist({ essential: true, ...next }),
-    [persist],
-  );
+  const save = useCallback((next: Omit<Consent, 'essential'>) => persist({ essential: true, ...next }), [persist]);
 
   /* Optional analytics only ever runs with consent, and is torn down on revoke. */
   const analyticsId = import.meta.env.VITE_ANALYTICS_ID as string | undefined;
@@ -134,11 +109,3 @@ export function CookieConsentProvider({ children }: { children: React.ReactNode 
 
   return <ConsentContext.Provider value={value}>{children}</ConsentContext.Provider>;
 }
-
-export const useCookieConsent = () => {
-  const context = useContext(ConsentContext);
-  if (!context) throw new Error('useCookieConsent must be used inside <CookieConsentProvider>');
-  return context;
-};
-
-export const CONSENT_COOKIE_NAME = COOKIE_NAME;

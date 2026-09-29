@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Send } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
@@ -29,13 +29,14 @@ export const AdminSupportPage = () => {
 
   const tickets = data?.data ?? [];
 
-  // Open the newest ticket by default so the queue never looks empty.
-  useEffect(() => {
-    if (selectedId || !tickets.length) return;
-    setSelectedId(tickets[0].id);
-  }, [tickets, selectedId]);
-
-  useEffect(() => setReply(''), [selectedId]);
+  // Open the newest ticket by default so the queue never looks empty, and clear
+  // the composer when the selection changes — both derived, not effect-driven.
+  const [replyOwner, setReplyOwner] = useState<number | null>(null);
+  if (!selectedId && tickets.length) setSelectedId(tickets[0].id);
+  if (selectedId !== replyOwner) {
+    setReplyOwner(selectedId);
+    setReply('');
+  }
 
   const submitReply = async () => {
     if (!selectedId || reply.trim().length < 1) return;

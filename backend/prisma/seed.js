@@ -664,7 +664,7 @@ async function seed() {
 
   await prisma.announcement.create({
     data: {
-      title: 'Free shipping over $75',
+      title: 'Free shipping over ₹999',
       message: 'Use code FREESHIP at checkout — no minimum this week.',
       isActive: true,
     },

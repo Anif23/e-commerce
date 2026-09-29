@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Cookie, CreditCard, Headphones, RotateCcw, Truck } from 'lucide-react';
 
 import { useCategories } from '../../hooks/queries/useCatalog';
-import { useCookieConsent } from '../../providers/CookieConsentProvider';
+import { useCookieConsent } from '../../providers/cookieConsent';
 import { POLICIES } from '../../content/policies';
 import { formatPrice } from '../../lib/format';
 import { FREE_SHIPPING_THRESHOLD, STORE_LOGO, STORE_NAME, STORE_TAGLINE } from '../../lib/store';

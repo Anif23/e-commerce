@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Cookie, Settings2 } from 'lucide-react';
 
 import { Button } from '../ui/Button';
 import { Checkbox } from '../ui/Field';
 import { Modal } from '../ui/Overlay';
-import { useCookieConsent } from '../../providers/CookieConsentProvider';
+import { useCookieConsent } from '../../providers/cookieConsent';
 import { cn } from '../../lib/cn';
 
 type CategoryKey = 'preferences' | 'analytics' | 'marketing';
@@ -29,27 +29,73 @@ const CATEGORIES: { key: CategoryKey; title: string; description: string }[] = [
 ];
 
 /**
+ * Preferences dialog body. It only mounts while the dialog is open, so the
+ * checkboxes can be initialised straight from the stored choice — no effect, no
+ * extra render pass.
+ */
+const PreferencesForm = ({
+  initial,
+  onSave,
+}: {
+  initial: Record<CategoryKey, boolean>;
+  onSave: (next: Record<CategoryKey, boolean>) => void;
+}) => {
+  const [draft, setDraft] = useState(initial);
+
+  return (
+    <div className="space-y-5">
+      <p className="text-sm text-ink-500">
+        Choose what Asnif Store may store in your browser. Essential cookies are always on — without them sign-in, cart
+        and checkout cannot work.
+      </p>
+
+      <div className="rounded-xl border border-ink-200 bg-ink-50 p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-ink-900">Essential</p>
+            <p className="mt-0.5 text-xs text-ink-500">
+              Session, security, cart and your cookie choice. Cannot be disabled.
+            </p>
+          </div>
+          <span className="mt-0.5 shrink-0 text-xs font-semibold uppercase tracking-wide text-brand-600">
+            Always on
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {CATEGORIES.map((category) => (
+          <div key={category.key} className="rounded-xl border border-ink-200 p-4">
+            <Checkbox
+              label={<span className="text-sm font-semibold text-ink-900">{category.title}</span>}
+              description={category.description}
+              checked={draft[category.key]}
+              onChange={(checked) => setDraft((current) => ({ ...current, [category.key]: checked }))}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap justify-end gap-2 border-t border-ink-100 pt-4">
+        <Button variant="ghost" onClick={() => onSave({ preferences: false, analytics: false, marketing: false })}>
+          Reject optional
+        </Button>
+        <Button variant="secondary" onClick={() => onSave(draft)}>
+          Save choices
+        </Button>
+        <Button onClick={() => onSave({ preferences: true, analytics: true, marketing: true })}>Accept all</Button>
+      </div>
+    </div>
+  );
+};
+
+/**
  * Cookie banner + preferences dialog.
  * The banner appears once (per consent version) and the dialog can be reopened
  * from the footer or the cookie policy page.
  */
 export const CookieConsent = () => {
   const { consent, hasDecided, acceptAll, rejectOptional, save, dialogOpen, reopen, closeDialog } = useCookieConsent();
-  const [draft, setDraft] = useState<Record<CategoryKey, boolean>>({
-    preferences: consent?.preferences ?? false,
-    analytics: consent?.analytics ?? false,
-    marketing: consent?.marketing ?? false,
-  });
-
-  useEffect(() => {
-    if (dialogOpen) {
-      setDraft({
-        preferences: consent?.preferences ?? false,
-        analytics: consent?.analytics ?? false,
-        marketing: consent?.marketing ?? false,
-      });
-    }
-  }, [consent?.analytics, consent?.marketing, consent?.preferences, dialogOpen]);
 
   const showBanner = !hasDecided && !dialogOpen;
 
@@ -103,49 +149,14 @@ export const CookieConsent = () => {
       </div>
 
       <Modal open={dialogOpen} onClose={closeDialog} title="Cookie preferences">
-        <div className="space-y-5">
-          <p className="text-sm text-ink-500">
-            Choose what Asnif Store may store in your browser. Essential cookies are always on — without them sign-in,
-            cart and checkout cannot work.
-          </p>
-
-          <div className="rounded-xl border border-ink-200 bg-ink-50 p-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold text-ink-900">Essential</p>
-                <p className="mt-0.5 text-xs text-ink-500">
-                  Session, security, cart and your cookie choice. Cannot be disabled.
-                </p>
-              </div>
-              <span className="mt-0.5 shrink-0 text-xs font-semibold uppercase tracking-wide text-brand-600">
-                Always on
-              </span>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            {CATEGORIES.map((category) => (
-              <div key={category.key} className="rounded-xl border border-ink-200 p-4">
-                <Checkbox
-                  label={<span className="text-sm font-semibold text-ink-900">{category.title}</span>}
-                  description={category.description}
-                  checked={draft[category.key]}
-                  onChange={(checked) => setDraft((current) => ({ ...current, [category.key]: checked }))}
-                />
-              </div>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap justify-end gap-2 border-t border-ink-100 pt-4">
-            <Button variant="ghost" onClick={rejectOptional}>
-              Reject optional
-            </Button>
-            <Button variant="secondary" onClick={() => save(draft)}>
-              Save choices
-            </Button>
-            <Button onClick={acceptAll}>Accept all</Button>
-          </div>
-        </div>
+        <PreferencesForm
+          initial={{
+            preferences: consent?.preferences ?? false,
+            analytics: consent?.analytics ?? false,
+            marketing: consent?.marketing ?? false,
+          }}
+          onSave={save}
+        />
       </Modal>
     </>
   );

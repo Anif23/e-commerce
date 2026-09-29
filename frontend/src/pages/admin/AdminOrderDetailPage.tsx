@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 
@@ -34,14 +34,16 @@ export const AdminOrderDetailPage = () => {
   const [trackingCarrier, setTrackingCarrier] = useState('');
   const [note, setNote] = useState('');
 
-  useEffect(() => {
-    if (!order) return;
-
+  // Switch orders: reset the controls to that order's tracking details while
+  // rendering instead of in an effect (no extra commit, no stale fields).
+  const [syncedOrderId, setSyncedOrderId] = useState<string | null>(null);
+  if (order && String(order.id) !== syncedOrderId) {
+    setSyncedOrderId(String(order.id));
     setStatus('');
     setTrackingNumber(order.tracking.number ?? '');
     setTrackingCarrier(order.tracking.carrier ?? '');
     setNote('');
-  }, [order?.id]);
+  }
 
   if (isLoading) return <Skeleton className="h-96 w-full" />;
 

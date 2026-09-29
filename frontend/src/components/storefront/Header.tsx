@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, NavLink, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ChevronDown,
@@ -53,10 +53,14 @@ export const Header = ({ onOpenCart }: { onOpenCart: () => void }) => {
   const shopRef = useClickOutside<HTMLDivElement>(shopOpen, () => setShopOpen(false));
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Keep the header search box in sync with the products page URL.
-  useEffect(() => {
-    setQuery(searchParams.get('search') ?? '');
-  }, [searchParams]);
+  // Keep the header search box in sync with the products page URL. Adjusting
+  // state while rendering (guarded by the previous value) avoids an extra pass.
+  const urlSearch = searchParams.get('search') ?? '';
+  const [syncedSearch, setSyncedSearch] = useState(urlSearch);
+  if (urlSearch !== syncedSearch) {
+    setSyncedSearch(urlSearch);
+    setQuery(urlSearch);
+  }
 
   const submitSearch = (event: React.FormEvent) => {
     event.preventDefault();

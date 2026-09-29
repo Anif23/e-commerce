@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { formatDate } from '../../lib/format';
 import { useAuthStore } from '../../store/authStore';
@@ -22,10 +22,14 @@ export const ProfilePage = () => {
   const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '' });
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!profile) return;
+  // Seed the form from the profile while rendering (guarded), so a fresh
+  // profile never needs an extra render pass to appear.
+  const [seeded, setSeeded] = useState<string | null>(null);
+  const seedKey = profile ? `${profile.username}:${profile.email}` : null;
+  if (profile && seedKey !== seeded) {
+    setSeeded(seedKey);
     setForm({ username: profile.username, email: profile.email });
-  }, [profile]);
+  }
 
   return (
     <div className="space-y-6">

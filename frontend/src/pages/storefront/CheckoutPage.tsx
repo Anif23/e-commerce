@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Check, CreditCard, MapPin, ShoppingBag, TestTube, Truck, Wallet } from 'lucide-react';
 
@@ -9,7 +9,8 @@ import { Button } from '../../components/ui/Button';
 import { Textarea } from '../../components/ui/Field';
 import { Badge, EmptyState, ErrorState } from '../../components/ui';
 import { Skeleton } from '../../components/ui/Feedback';
-import { AddressForm, type AddressDraft } from '../../components/account/AddressForm';
+import { AddressForm } from '../../components/account/AddressForm';
+import type { AddressDraft } from '../../lib/address';
 import { PaymentPanel, type PaymentSession } from '../../components/checkout/PaymentPanel';
 import { useCheckout, useCheckoutSummary, useConfirmPayment } from '../../hooks/queries/useOrders';
 import { cartApi } from '../../lib/api/endpoints';
@@ -51,24 +52,27 @@ export const CheckoutPage = () => {
   const [pending, setPending] = useState<{ orderId: number; payment: PaymentSession | null } | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const addresses = data?.addresses ?? [];
+  const addresses = useMemo(() => data?.addresses ?? [], [data?.addresses]);
   const cart = data?.cart;
 
-  // Default to the shopper's default address as soon as it arrives.
-  useEffect(() => {
-    if (!addresses.length) return;
-
+  // Default to the shopper's default address and to the first available payment
+  // method as soon as the summary arrives. Both are derived while rendering, so
+  // the form is correct on the first paint.
+  const [syncedAddresses, setSyncedAddresses] = useState<number | null>(null);
+  if (addresses.length && syncedAddresses !== addresses.length) {
     const preferred = addresses.find((address: Address) => address.isDefault) ?? addresses[0];
+    setSyncedAddresses(addresses.length);
     setAddressId(preferred.id);
     setAddressMode('saved');
-  }, [data?.addresses]);
+  }
 
-  useEffect(() => {
-    if (!data?.paymentMethods?.length) return;
-    setMethod((current) =>
-      data.paymentMethods.some((entry) => entry.id === current) ? current : data.paymentMethods[0].id,
-    );
-  }, [data?.paymentMethods]);
+  const methods = data?.paymentMethods ?? [];
+  const methodKey = methods.map((entry) => entry.id).join(',');
+  const [syncedMethods, setSyncedMethods] = useState<string | null>(null);
+  if (methods.length && methodKey !== syncedMethods) {
+    setSyncedMethods(methodKey);
+    setMethod((current) => (methods.some((entry) => entry.id === current) ? current : methods[0].id));
+  }
 
   const selectedAddress = useMemo(
     () => addresses.find((address: Address) => address.id === addressId) ?? null,

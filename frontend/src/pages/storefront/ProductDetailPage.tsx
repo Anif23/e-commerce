@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   Check,
@@ -36,7 +36,12 @@ const Gallery = ({ product }: { product: Product }) => {
   const images = product.images.length ? product.images : [product.image ?? ''];
   const [active, setActive] = useState(0);
 
-  useEffect(() => setActive(0), [product.id]);
+  // Reset to the first image when a different product renders.
+  const [shownProduct, setShownProduct] = useState(product.id);
+  if (product.id !== shownProduct) {
+    setShownProduct(product.id);
+    setActive(0);
+  }
 
   return (
     <div className="space-y-3">
@@ -188,20 +193,21 @@ export const ProductDetailPage = () => {
     enabled: isAuthed && Boolean(product?.id),
   });
 
-  useEffect(() => setQuantity(1), [product?.id]);
+  // Switching products resets the quantity and picks the first in-stock variant
+  // (so the CTA is never dead). Both reset while rendering rather than in an
+  // effect, which keeps the first paint correct.
+  const [shownProduct, setShownProduct] = useState<string | number | null>(null);
+  if (product?.id && product.id !== shownProduct) {
+    setShownProduct(product.id);
+    setQuantity(1);
 
-  // Start with the first in-stock variant selected so the CTA is never dead.
-  useEffect(() => {
-    if (!product?.options?.length) return;
-
-    setSelected(() => {
-      const first = product.variants.find((variant) => variant.stock > 0) ?? product.variants[0];
-
-      return first
-        ? Object.fromEntries(product.options!.map((option) => [option.name, first.combination[option.name]]))
-        : {};
-    });
-  }, [product?.id, product?.options?.length]);
+    const first = product.variants?.find((variant) => variant.stock > 0) ?? product.variants?.[0];
+    setSelected(
+      first && product.options?.length
+        ? Object.fromEntries(product.options.map((option) => [option.name, first.combination[option.name]]))
+        : {},
+    );
+  }
 
   const activeVariant = useMemo(() => {
     if (!product?.hasVariants) return null;

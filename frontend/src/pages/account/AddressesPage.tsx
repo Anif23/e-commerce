@@ -4,7 +4,8 @@ import { MapPin, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button, IconButton } from '../../components/ui/Button';
 import { Badge, ConfirmDialog, EmptyState, Modal } from '../../components/ui';
 import { Skeleton } from '../../components/ui/Feedback';
-import { AddressForm, toDraft, type AddressDraft } from '../../components/account/AddressForm';
+import { AddressForm } from '../../components/account/AddressForm';
+import { toDraft, type AddressDraft } from '../../lib/address';
 import { useAddressMutations, useAddresses } from '../../hooks/queries/useAccount';
 import type { Address } from '../../types/api';
 

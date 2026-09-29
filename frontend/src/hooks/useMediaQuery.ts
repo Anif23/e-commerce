@@ -1,21 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
+/**
+ * Subscribes to a media query with `useSyncExternalStore`, so the value is
+ * correct on the first render (and during SSR) instead of after an effect.
+ */
 export const useMediaQuery = (query: string) => {
-  const [matches, setMatches] = useState(() =>
-    typeof window === 'undefined' ? false : window.matchMedia(query).matches,
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      const list = window.matchMedia(query);
+      list.addEventListener('change', onStoreChange);
+      return () => list.removeEventListener('change', onStoreChange);
+    },
+    [query],
   );
 
-  useEffect(() => {
-    const list = window.matchMedia(query);
-    const handler = (event: MediaQueryListEvent) => setMatches(event.matches);
+  const getSnapshot = useCallback(() => window.matchMedia(query).matches, [query]);
+  const getServerSnapshot = () => false;
 
-    setMatches(list.matches);
-    list.addEventListener('change', handler);
-
-    return () => list.removeEventListener('change', handler);
-  }, [query]);
-
-  return matches;
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 };
 
 export const useIsDesktop = () => useMediaQuery('(min-width: 1024px)');

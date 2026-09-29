@@ -2,62 +2,7 @@ import { useState } from 'react';
 
 import { Checkbox, Input, Select } from '../ui/Field';
 import { Button } from '../ui/Button';
-import type { Address } from '../../types/api';
-
-/** States and union territories the store ships to. */
-export const INDIAN_STATES = [
-  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
-  'Delhi', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand',
-  'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
-  'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan',
-  'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh',
-  'Uttarakhand', 'West Bengal',
-  'Andaman & Nicobar Islands', 'Chandigarh', 'Dadra & Nagar Haveli and Daman & Diu',
-  'Jammu & Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry',
-];
-
-export type AddressDraft = {
-  label?: string;
-  fullName: string;
-  phone: string;
-  address1: string;
-  address2?: string;
-  city: string;
-  state: string;
-  country: string;
-  zipCode: string;
-  isDefault?: boolean;
-  save?: boolean;
-};
-
-const EMPTY: AddressDraft = {
-  label: '',
-  fullName: '',
-  phone: '',
-  address1: '',
-  address2: '',
-  city: '',
-  state: '',
-  country: 'India',
-  zipCode: '',
-  isDefault: false,
-};
-
-export const toDraft = (address?: Address | null): AddressDraft =>
-  address
-    ? {
-        label: address.label ?? '',
-        fullName: address.fullName,
-        phone: address.phone,
-        address1: address.address1,
-        address2: address.address2 ?? '',
-        city: address.city,
-        state: address.state,
-        country: address.country,
-        zipCode: address.zipCode,
-        isDefault: address.isDefault,
-      }
-    : { ...EMPTY };
+import { EMPTY_ADDRESS, INDIAN_STATES, type AddressDraft } from '../../lib/address';
 
 /**
  * Address fields shared by checkout and the account address book.
@@ -79,7 +24,7 @@ export const AddressForm = ({
   onSubmit: (draft: AddressDraft) => void;
   onCancel?: () => void;
 }) => {
-  const [draft, setDraft] = useState<AddressDraft>(initial ?? { ...EMPTY });
+  const [draft, setDraft] = useState<AddressDraft>(initial ?? { ...EMPTY_ADDRESS });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const set = (key: keyof AddressDraft) => (value: string | boolean) =>

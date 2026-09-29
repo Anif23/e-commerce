@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Display';
 import { Badge, Reveal } from '../../components/ui/Feedback';
 import { POLICIES, getPolicy, type Policy, type PolicyBlock } from '../../content/policies';
-import { useCookieConsent } from '../../providers/CookieConsentProvider';
+import { useCookieConsent } from '../../providers/cookieConsent';
 import { POLICY_LAST_UPDATED, SUPPORT_EMAIL, SUPPORT_HOURS, SUPPORT_PHONE, STORE_NAME } from '../../lib/store';
 import { cn } from '../../lib/cn';
 

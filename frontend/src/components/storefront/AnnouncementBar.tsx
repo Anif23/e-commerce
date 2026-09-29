@@ -1,5 +1,5 @@
 import { Megaphone, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { useAnnouncement } from '../../hooks/queries/useCatalog';
 
@@ -8,9 +8,13 @@ export const AnnouncementBar = () => {
   const { data } = useAnnouncement();
   const [dismissed, setDismissed] = useState(false);
 
-  useEffect(() => {
+  // A new announcement re-opens the bar: reset while rendering instead of in an
+  // effect, so there is no extra commit and no flash of the dismissed state.
+  const [shownId, setShownId] = useState(data?.id ?? null);
+  if ((data?.id ?? null) !== shownId) {
+    setShownId(data?.id ?? null);
     setDismissed(false);
-  }, [data?.id]);
+  }
 
   if (!data || dismissed) return null;
 
