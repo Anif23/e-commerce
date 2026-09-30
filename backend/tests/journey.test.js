@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
 
 import { app, authHeader, createOrder, makeAdmin, makeUser, prisma, seedCatalog } from './helpers.js';
+import { finalizePayment, getOrderOrThrow, placeOrder } from '../src/modules/orders/order.service.js';
 
 /**
  * The purchase journey end to end:
@@ -12,6 +13,7 @@ describe('purchase journey', () => {
   let customer;
   let admin;
   let catalog;
+  let pendingOrderId;
 
   beforeAll(async () => {
     customer = await makeUser();
@@ -83,73 +85,100 @@ describe('purchase journey', () => {
     expect(response.body.data.totals.subtotal).toBe(230);
   });
 
-  it('places the order and keeps it pending until payment', async () => {
-    const order = await createOrder({ token: customer.token });
+  it('creates a pending online order without reserving stock before gateway confirmation', async () => {
+    const address = await request(app)
+      .post('/api/addresses')
+      .set(authHeader(customer.token))
+      .send({
+        fullName: 'Test Shopper',
+        phone: '+91 98765 43210',
+        address1: '12 Test Avenue',
+        city: 'Thoothukudi',
+        state: 'Tamil Nadu',
+        country: 'India',
+        zipCode: '628001',
+      })
+      .expect(201);
 
-    expect(order.body.data.order.status).toBe('PENDING_PAYMENT');
-    expect(order.body.data.payment.provider).toBe('MOCK');
-
-    const stored = await prisma.order.findUnique({
-      where: { id: order.body.data.order.id },
-      include: { payment: true, items: true },
+    const placed = await placeOrder({
+      userId: customer.user.id,
+      addressId: address.body.data.id,
+      provider: 'RAZORPAY',
     });
+    pendingOrderId = placed.order.id;
 
-    expect(stored.items).toHaveLength(1);
-    expect(stored.payment.status).toBe('PENDING');
-    expect(stored.expiresAt).not.toBeNull();
+    expect(placed.order.status).toBe('PENDING_PAYMENT');
+    expect(placed.order.payment.provider).toBe('RAZORPAY');
+    expect(placed.order.payment.status).toBe('PENDING');
+    expect(placed.order.expiresAt).not.toBeNull();
+    expect(placed.order.items).toHaveLength(1);
 
-    // Stock is only reserved once the payment succeeds.
-    const variant = await prisma.productVariant.findUnique({ where: { id: stored.items[0].variantId } });
+    // Stock is only reserved after the gateway confirms capture.
+    const variant = await prisma.productVariant.findUnique({ where: { id: placed.order.items[0].variantId } });
     expect(variant.stock).toBe(3);
   });
 
-  it('does not finalise a simulated declined payment', async () => {
+  it('does not finalise a declined gateway result', async () => {
     const user = await makeUser();
-    const medium = catalog.variantProduct.variants.find((variant) => variant.priceAdjustment > 0);
-
-    const order = await createOrder({ token: user.token, productId: catalog.variantProduct.id, variantId: medium.id });
-
     await request(app)
-      .post('/api/payments/confirm')
+      .post('/api/cart/items')
       .set(authHeader(user.token))
-      .send({ orderId: order.body.data.order.id, payload: { outcome: 'fail' } })
-      .expect(402);
+      .send({ productId: catalog.simple.id, quantity: 1 })
+      .expect(200);
+    const address = await request(app)
+      .post('/api/addresses')
+      .set(authHeader(user.token))
+      .send({
+        fullName: 'Test Shopper',
+        phone: '+91 98765 43210',
+        address1: '12 Test Avenue',
+        city: 'Thoothukudi',
+        state: 'Tamil Nadu',
+        country: 'India',
+        zipCode: '628001',
+      })
+      .expect(201);
 
-    const stored = await prisma.order.findUnique({
-      where: { id: order.body.data.order.id },
-      include: { payment: true },
+    const placed = await placeOrder({ userId: user.user.id, addressId: address.body.data.id, provider: 'RAZORPAY' });
+    const outcome = await finalizePayment({
+      order: placed.order,
+      result: { status: 'FAILED', failureCode: 'DECLINED' },
     });
+    const stored = await prisma.order.findUnique({ where: { id: placed.order.id }, include: { payment: true } });
 
+    expect(outcome.failed).toBe(true);
     expect(stored.status).toBe('PENDING_PAYMENT');
     expect(stored.payment.status).toBe('FAILED');
   });
 
   it('confirms payment, moves stock, clears the cart and records the timeline', async () => {
-    const orderId = (
-      await prisma.order.findFirst({
-        where: { userId: customer.user.id },
-        orderBy: { id: 'desc' },
-      })
-    ).id;
+    const order = await getOrderOrThrow(pendingOrderId);
+    const outcome = await finalizePayment({
+      order,
+      result: {
+        status: 'SUCCESS',
+        reference: 'razorpay-payment-reference',
+        payerEmail: 'shopper@example.test',
+        method: 'upi',
+        currency: 'INR',
+      },
+    });
+    const updated = await getOrderOrThrow(pendingOrderId);
 
-    const response = await request(app)
-      .post('/api/payments/confirm')
-      .set(authHeader(customer.token))
-      .send({ orderId })
-      .expect(200);
-
-    expect(response.body.data.order.status).toBe('PAID');
-    expect(response.body.data.order.timeline.map((event) => event.status)).toContain('PAID');
+    expect(outcome.failed).toBe(false);
+    expect(updated.status).toBe('PAID');
+    expect(updated.timeline.map((event) => event.status)).toContain('PAID');
 
     const stored = await prisma.order.findUnique({
-      where: { id: orderId },
+      where: { id: pendingOrderId },
       include: { items: true, payment: true, events: true },
     });
-
     const variant = await prisma.productVariant.findUnique({ where: { id: stored.items[0].variantId } });
 
     expect(variant.stock).toBe(1); // 3 - 2
     expect(stored.payment.status).toBe('SUCCESS');
+    expect(stored.payment.paymentId).toBe('razorpay-payment-reference');
+    expect(stored.payment.method).toBe('upi');
     expect(stored.couponCode).toBe(catalog.coupon.code);
 
     const cart = await request(app).get('/api/cart').set(authHeader(customer.token)).expect(200);

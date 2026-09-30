@@ -6,23 +6,33 @@ import { useCookieConsent } from '../../providers/cookieConsent';
 import { POLICIES } from '../../content/policies';
 import { formatPrice } from '../../lib/format';
 import { FREE_SHIPPING_THRESHOLD, STORE_LOGO, STORE_NAME, STORE_TAGLINE } from '../../lib/store';
+import { useStoreSettings } from '../../hooks/queries/useStoreSettings';
+import { usePaymentMethods } from '../../hooks/queries/useOrders';
+import { assetUrl } from '../../lib/assets';
 
-const PROMISES = [
-  { icon: Truck, title: 'Free shipping', text: `On orders over ${formatPrice(FREE_SHIPPING_THRESHOLD)}` },
-  { icon: RotateCcw, title: '30-day returns', text: 'No questions asked' },
-  { icon: CreditCard, title: 'Secure payment', text: 'PayPal, Stripe or cash on delivery' },
-  { icon: Headphones, title: 'Real support', text: 'Tickets answered by humans' },
-];
+const PROMISE_ICONS = [Truck, RotateCcw, CreditCard, Headphones];
 
 export const Footer = () => {
   const { data: categories } = useCategories();
+  const { data: settings } = useStoreSettings();
+  const { data: paymentMethods } = usePaymentMethods();
   const { reopen } = useCookieConsent();
+  const onlinePaymentNames = (paymentMethods ?? []).filter((method) => method.online).map((method) => method.label);
+  const paymentCopy = onlinePaymentNames.length
+    ? `${onlinePaymentNames.join(' and ')} or cash on delivery`
+    : 'Cash on delivery';
+  const promises = [
+    { icon: PROMISE_ICONS[0], title: 'Free shipping', text: `On orders over ${formatPrice(settings?.freeShippingThreshold ?? FREE_SHIPPING_THRESHOLD)}` },
+    { icon: PROMISE_ICONS[1], title: 'Easy returns', text: 'Clear return and refund policy' },
+    { icon: PROMISE_ICONS[2], title: 'Secure payment', text: paymentCopy },
+    { icon: PROMISE_ICONS[3], title: 'Real support', text: 'Tickets answered by humans' },
+  ];
 
   return (
     <footer className="mt-20 border-t border-ink-200 bg-white">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid gap-6 border-b border-ink-100 py-10 sm:grid-cols-2 lg:grid-cols-4">
-          {PROMISES.map((promise) => (
+          {promises.map((promise) => (
             <div key={promise.title} className="flex items-start gap-3">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600">
                 <promise.icon className="h-5 w-5" />
@@ -38,14 +48,14 @@ export const Footer = () => {
         <div className="grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-5">
           <div>
             <Link to="/" className="flex items-center gap-2">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-600 text-base font-bold text-white">
-                {STORE_LOGO}
+              <span className="grid h-9 w-9 place-items-center overflow-hidden rounded-xl bg-brand-600 text-base font-bold text-white">
+                {settings?.logoUrl ? (
+                  <img src={assetUrl(settings.logoUrl)} alt="" className="h-full w-full object-contain" />
+                ) : STORE_LOGO}
               </span>
-              <span className="text-base font-semibold text-ink-900">
-                Asnif <span className="text-brand-600">Store</span>
-              </span>
+              <span className="text-base font-semibold text-ink-900">{settings?.storeName ?? STORE_NAME}</span>
             </Link>
-            <p className="mt-4 max-w-xs text-sm text-ink-500">{STORE_TAGLINE}</p>
+            <p className="mt-4 max-w-xs text-sm text-ink-500">{settings?.tagline ?? STORE_TAGLINE}</p>
           </div>
 
           <div>
@@ -132,7 +142,7 @@ export const Footer = () => {
         </div>
 
         <div className="flex flex-col items-center justify-between gap-3 border-t border-ink-100 py-6 text-xs text-ink-400 sm:flex-row">
-          <p>© {new Date().getFullYear()} {STORE_NAME}. Prices in INR, GST invoiced. Made in India 🇮🇳</p>
+          <p>© {new Date().getFullYear()} {settings?.storeName ?? STORE_NAME}. Prices in INR; {settings?.taxName ?? 'GST'} shown at checkout. Made in India 🇮🇳</p>
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
             {POLICIES.map((policy) => (
               <Link key={policy.slug} to={`/policies/${policy.slug}`} className="transition hover:text-brand-700">

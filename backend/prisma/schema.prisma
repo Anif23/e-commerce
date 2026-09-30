@@ -40,9 +40,10 @@ enum PaymentStatus {
 
 enum PaymentProvider {
   COD
-  PAYPAL
+  PAYPAL // historical records only; not available for new checkouts
   STRIPE
-  MOCK // simulated gateway used for local development and tests
+  MOCK // historical records only; not available for new checkouts
+  RAZORPAY
 }
 
 enum DiscountType {
@@ -383,6 +384,23 @@ model Announcement {
   updatedAt DateTime @updatedAt
 }
 
+/// Singleton operational and brand settings managed by store administrators.
+model StoreSetting {
+  id                   Int      @id @default(1)
+  storeName            String   @default("Asnif Store")
+  tagline              String   @default("Premium shopping experience with top quality products.")
+  logoUrl              String?
+  supportEmail         String   @default("support@asnifstore.in")
+  supportPhone         String   @default("+91 98765 43210")
+  supportHours         String   @default("Mon–Sat, 10:00–19:00 IST")
+  businessAddress      String   @default("Asnif Retail Pvt Ltd, 42 Gandhi Nagar, Thoothukudi, Tamil Nadu 628001, India")
+  taxName              String   @default("GST")
+  taxRatePercent       Float    @default(18)
+  shippingFee          Float    @default(49)
+  freeShippingThreshold Float   @default(999)
+  updatedAt            DateTime @updatedAt
+}
+
 // ---------------------------------------------------------------------------
 // Orders & payments
 // ---------------------------------------------------------------------------
@@ -419,10 +437,12 @@ model Order {
   userId Int
   total  Float
 
-  subtotal Float  @default(0)
-  discount Float  @default(0)
-  shipping Float  @default(0)
-  tax      Float  @default(0)
+  subtotal       Float  @default(0)
+  discount       Float  @default(0)
+  shipping       Float  @default(0)
+  tax            Float  @default(0)
+  taxName        String @default("GST")
+  taxRatePercent Float  @default(18)
 
   status OrderStatus
 
@@ -507,10 +527,15 @@ model Payment {
 
   provider PaymentProvider
 
-  paymentId   String?
-  payerId     String?
-  payerEmail  String?
-  failureCode String?
+  paymentId      String?
+  gatewayOrderId String?
+  currency       String   @default("INR")
+  method         String?
+  payerId        String?
+  payerEmail     String?
+  payerContact   String?
+  failureCode    String?
+  capturedAt     DateTime?
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 

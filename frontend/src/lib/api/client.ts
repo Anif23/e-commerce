@@ -2,6 +2,7 @@ import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import toast from 'react-hot-toast';
 
 import { useAuthStore } from '../../store/authStore';
+import type { User } from '../../types/api';
 
 export const API_URL = import.meta.env.VITE_API_URL ?? '/api';
 
@@ -11,69 +12,64 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+type SessionPayload = { user: User; token: string; expiresIn: number };
+
+let sessionRefreshPromise: Promise<SessionPayload> | null = null;
+
+/** Uses the httpOnly refresh cookie; concurrent callers share one rotation request. */
+export const refreshSession = (): Promise<SessionPayload> => {
+  if (!sessionRefreshPromise) {
+    sessionRefreshPromise = axios
+      .post<{ success: boolean; data: SessionPayload }>(`${API_URL}/auth/refresh`, {}, { withCredentials: true })
+      .then(({ data }) => {
+        useAuthStore.getState().setSession(data.data.token, data.data.user);
+        return data.data;
+      })
+      .finally(() => {
+        sessionRefreshPromise = null;
+      });
+  }
+
+  return sessionRefreshPromise;
+};
+
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
 
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  if (token) config.headers.Authorization = `Bearer ${token}`;
 
   return config;
 });
 
 type RetriableConfig = InternalAxiosRequestConfig & { _retry?: boolean };
 
-let isRefreshing = false;
-let queue: ((token: string | null) => void)[] = [];
-
-const flushQueue = (token: string | null) => {
-  queue.forEach((resolve) => resolve(token));
-  queue = [];
-};
+const isAuthEndpoint = (url = '') => /\/auth\/(?:login|register|refresh|logout)(?:[/?#]|$)/.test(url);
 
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const original = error.config as RetriableConfig | undefined;
-    const status = error.response?.status;
 
-    // Only attempt a silent refresh for expired access tokens.
-    if (status !== 401 || !original || original._retry) {
+    if (error.response?.status !== 401 || !original || original._retry || isAuthEndpoint(original.url)) {
       return Promise.reject(error);
-    }
-
-    if (isRefreshing) {
-      return new Promise((resolve, reject) => {
-        queue.push((token) => {
-          if (!token) return reject(error);
-          original.headers.Authorization = `Bearer ${token}`;
-          resolve(api(original));
-        });
-      });
     }
 
     original._retry = true;
-    isRefreshing = true;
 
     try {
-      const { data } = await axios.post<{ success: boolean; data: { token: string } }>(
-        `${API_URL}/auth/refresh`,
-        {},
-        { withCredentials: true },
-      );
-
-      const token = data.data.token;
-      useAuthStore.getState().setToken(token);
-      flushQueue(token);
-
+      const { token } = await refreshSession();
       original.headers.Authorization = `Bearer ${token}`;
       return api(original);
-    } catch {
-      flushQueue(null);
-      useAuthStore.getState().clearSession();
+    } catch (refreshError) {
+      const refreshStatus = (refreshError as AxiosError).response?.status;
+
+      // Expired/revoked refresh cookie means the session is genuinely over.
+      // A timeout or server error is transient and must not sign the shopper out.
+      if (refreshStatus === 401 || refreshStatus === 403) {
+        useAuthStore.getState().clearSession();
+      }
+
       return Promise.reject(error);
-    } finally {
-      isRefreshing = false;
     }
   },
 );

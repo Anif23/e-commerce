@@ -11,10 +11,17 @@ import { adminReviewsRoutes } from '../reviews/reviews.routes.js';
 import { adminSupportRoutes } from '../support/support.routes.js';
 import { adminPromotionsRoutes } from '../promotions/promotions.routes.js';
 import { announcementsController } from '../promotions/announcements.controller.js';
+import { storeSettingsController } from '../store/storeSettings.controller.js';
+import { upload } from '../../middleware/upload.js';
 
 export const adminRoutes = Router();
 
 adminRoutes.use(authMiddleware, adminMiddleware);
+
+/* store settings */
+adminRoutes.get('/settings', storeSettingsController.adminGet);
+adminRoutes.put('/settings', storeSettingsController.update);
+adminRoutes.post('/settings/logo', upload.single('logo'), storeSettingsController.uploadLogo);
 
 /* dashboard & reports */
 adminRoutes.get('/dashboard', dashboardController.stats);

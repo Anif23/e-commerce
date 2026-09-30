@@ -4,8 +4,9 @@ import { prisma } from '../../lib/prisma.js';
 import { ApiError, asyncHandler } from '../../lib/errors.js';
 import { getMeta, getPagination } from '../../lib/query.js';
 import { round2 } from '../../lib/money.js';
-import { addEvent, getOrderOrThrow, serializeOrder } from '../orders/order.service.js';
+import { addEvent, cancelOrder, getOrderOrThrow, serializeOrder } from '../orders/order.service.js';
 import { createUserNotification } from '../../services/notifications.js';
+import { applyStockChange } from '../../services/inventory.js';
 import { emitOrderUpdate } from '../../realtime/socket.js';
 
 const statusSchema = z.object({
@@ -90,6 +91,20 @@ export const adminOrdersController = {
     if (order.status !== body.status && !ALLOWED_TRANSITIONS[order.status]?.includes(body.status)) {
       throw ApiError.badRequest(`Cannot move an order from ${order.status} to ${body.status}`);
     }
+    if (
+      order.status === 'PENDING_PAYMENT' &&
+      ['PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED'].includes(body.status)
+    ) {
+      throw ApiError.badRequest('A payment-pending order can only advance after gateway confirmation');
+    }
+    if (body.status === 'CANCELLED' && order.status !== 'CANCELLED') {
+      const cancelled = await cancelOrder({
+        order,
+        reason: body.note || 'Cancelled by store',
+        actor: 'admin',
+      });
+      return res.json({ success: true, message: 'Order cancelled', data: serializeOrder(cancelled) });
+    }
 
     const data = { status: body.status };
 
@@ -137,6 +152,19 @@ export const adminOrdersController = {
     const order = await getOrderOrThrow(req.params.id);
 
     if (!order.payment) throw ApiError.badRequest('This order has no payment record');
+    if (status === 'REFUNDED' && order.payment.status !== 'SUCCESS') {
+      throw ApiError.badRequest('Only a successfully captured payment can be marked refunded');
+    }
+    if (order.payment.status === 'SUCCESS' && !['SUCCESS', 'REFUNDED'].includes(status)) {
+      throw ApiError.badRequest('A captured payment must remain successful until its refund is recorded');
+    }
+    if (
+      status === 'SUCCESS' &&
+      ['RAZORPAY', 'STRIPE'].includes(order.payment.provider) &&
+      order.payment.status !== 'SUCCESS'
+    ) {
+      throw ApiError.badRequest('Online payment success is verified by the gateway confirmation or webhook');
+    }
 
     await prisma.$transaction(async (tx) => {
       await tx.payment.update({ where: { orderId: order.id }, data: { status } });
@@ -144,23 +172,22 @@ export const adminOrdersController = {
       if (status === 'REFUNDED') {
         await tx.order.update({ where: { id: order.id }, data: { status: 'CANCELLED', cancelledAt: new Date() } });
 
-        for (const item of order.items) {
-          await tx.product.update({
-            where: { id: item.productId },
-            data: { stock: { increment: item.quantity } },
-          });
-
-          await tx.stockLog.create({
-            data: {
+        if (['PAID', 'PROCESSING', 'SHIPPED'].includes(order.status)) {
+          for (const item of order.items) {
+            await applyStockChange(tx, {
               productId: item.productId,
-              variantId: item.variantId,
-              change: item.quantity,
+              variantId: item.variantId ?? null,
+              change: Math.abs(item.quantity),
               reason: `Order #${order.id} refunded`,
-            },
-          });
+            });
+            await tx.product.update({
+              where: { id: item.productId },
+              data: { soldCount: { decrement: Math.max(0, Number(item.quantity) || 0) } },
+            });
+          }
         }
 
-        await addEvent(tx, { orderId: order.id, status: 'CANCELLED', message: 'Payment refunded', actor: 'admin' });
+        await addEvent(tx, { orderId: order.id, status: 'CANCELLED', message: 'Payment refund recorded by admin', actor: 'admin' });
       }
     });
 

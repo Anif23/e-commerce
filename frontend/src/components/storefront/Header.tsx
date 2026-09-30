@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Link, NavLink, useNavigate, useSearchParams } from 'react-router-dom';
 import {
+  Bell,
   ChevronDown,
   Heart,
   LayoutDashboard,
@@ -15,12 +16,14 @@ import {
 } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
-import { STORE_LOGO } from '../../lib/store';
+import { assetUrl } from '../../lib/assets';
+import { STORE_LOGO, STORE_NAME } from '../../lib/store';
+import { useStoreSettings } from '../../hooks/queries/useStoreSettings';
 import { initialsOf } from '../../lib/format';
 import { useAuthStore } from '../../store/authStore';
 import { useCategories } from '../../hooks/queries/useCatalog';
 import { useCart } from '../../hooks/queries/useCart';
-import { useNotifications, useWishlist } from '../../hooks/queries/useAccount';
+import { useNotifications } from '../../hooks/queries/useAccount';
 import { useLogout } from '../../hooks/queries/useAuth';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { IconButton } from '../ui/Button';
@@ -42,8 +45,8 @@ export const Header = ({ onOpenCart }: { onOpenCart: () => void }) => {
 
   const user = useAuthStore((state) => state.user);
   const isAuthed = useAuthStore((state) => Boolean(state.token));
+  const { data: storeSettings } = useStoreSettings();
   const cart = useCart();
-  const { ids: wishlistIds } = useWishlist();
   const { data: notifications } = useNotifications();
   const unreadCount = notifications?.unread ?? 0;
   const { data: categories } = useCategories();
@@ -73,6 +76,7 @@ export const Header = ({ onOpenCart }: { onOpenCart: () => void }) => {
     { to: '/account', label: 'My profile', icon: UserIcon },
     { to: '/account/orders', label: 'My orders', icon: Package },
     { to: '/account/addresses', label: 'Addresses', icon: MapPin },
+    { to: '/account/notifications', label: 'Notifications', icon: Bell },
     { to: '/wishlist', label: 'Wishlist', icon: Heart },
   ];
 
@@ -89,12 +93,14 @@ export const Header = ({ onOpenCart }: { onOpenCart: () => void }) => {
             <Menu className="h-5 w-5" />
           </button>
 
-          <Link to="/" className="flex shrink-0 items-center gap-2">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-600 text-base font-bold text-white">
-              {STORE_LOGO}
+          <Link to="/" className="flex shrink-0 items-center gap-2" aria-label={`${storeSettings?.storeName ?? STORE_NAME} home`}>
+            <span className="grid h-9 w-9 place-items-center overflow-hidden rounded-xl bg-brand-600 text-base font-bold text-white">
+              {storeSettings?.logoUrl ? (
+                <img src={assetUrl(storeSettings.logoUrl)} alt="" className="h-full w-full object-contain" />
+              ) : STORE_LOGO}
             </span>
             <span className="hidden text-base font-semibold tracking-tight text-ink-900 sm:block">
-              Asnif <span className="text-brand-600">Store</span>
+              {storeSettings?.storeName ?? STORE_NAME}
             </span>
           </Link>
 
@@ -169,14 +175,14 @@ export const Header = ({ onOpenCart }: { onOpenCart: () => void }) => {
 
           <div className="ml-auto flex items-center gap-1">
             <Link
-              to="/wishlist"
-              aria-label={`Wishlist (${wishlistIds.length})`}
+              to={isAuthed ? '/account/notifications' : '/login'}
+              aria-label={`Notifications (${unreadCount} unread)`}
               className="relative grid h-10 w-10 place-items-center rounded-lg text-ink-700 transition hover:bg-ink-100"
             >
-              <Heart className="h-5 w-5" />
-              {wishlistIds.length > 0 && (
+              <Bell className="h-5 w-5" />
+              {unreadCount > 0 && (
                 <span className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-brand-600 px-1 text-[10px] font-semibold text-white">
-                  {wishlistIds.length}
+                  {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
             </Link>
@@ -333,14 +339,20 @@ export const Header = ({ onOpenCart }: { onOpenCart: () => void }) => {
 
               <p className="mt-4 px-3 text-xs font-semibold uppercase tracking-wide text-ink-400">Account</p>
               {isAuthed ? (
-                [...accountLinks, { to: '/account/notifications', label: 'Notifications', icon: Package }].map((link) => (
+                accountLinks.map((link) => (
                   <Link
                     key={link.to}
                     to={link.to}
                     onClick={() => setMobileOpen(false)}
-                    className="block rounded-lg px-3 py-2.5 text-sm text-ink-600 transition hover:bg-ink-50"
+                    className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-ink-600 transition hover:bg-ink-50"
                   >
-                    {link.label}
+                    <link.icon className="h-4 w-4 text-ink-400" />
+                    <span className="flex-1">{link.label}</span>
+                    {link.to.endsWith('/notifications') && unreadCount > 0 && (
+                      <span className="rounded-full bg-brand-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
                   </Link>
                 ))
               ) : (

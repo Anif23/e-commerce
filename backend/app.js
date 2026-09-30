@@ -29,7 +29,16 @@ export const createApp = () => {
     }),
   );
 
-  app.use(express.json({ limit: '1mb' }));
+  app.use(
+    express.json({
+      limit: '1mb',
+      verify: (req, _res, buffer) => {
+        if (['/api/payments/stripe/webhook', '/api/payments/razorpay/webhook'].includes(req.path)) {
+          req.rawBody = Buffer.from(buffer);
+        }
+      },
+    }),
+  );
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
 

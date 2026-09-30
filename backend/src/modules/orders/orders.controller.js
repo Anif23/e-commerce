@@ -22,7 +22,12 @@ export const ordersController = {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          items: { include: { product: { include: { images: { select: { url: true } } } } }, variant: true },
+          items: {
+            include: {
+              product: { include: { images: { select: { url: true } } } },
+              variant: true,
+            },
+          },
           payment: true,
           address: true,
           events: { orderBy: { createdAt: 'asc' } },

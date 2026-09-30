@@ -105,7 +105,7 @@ export const AdminOrderDetailPage = () => {
                 <dd>{formatPrice(order.totals.shipping)}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-ink-500">Tax</dt>
+                <dt className="text-ink-500">{order.totals.taxName} ({order.totals.taxRatePercent}%)</dt>
                 <dd>{formatPrice(order.totals.tax)}</dd>
               </div>
               <div className="flex justify-between border-t border-ink-100 pt-2 text-base font-semibold">
@@ -201,14 +201,16 @@ export const AdminOrderDetailPage = () => {
                         : 'rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-medium text-ink-700 transition hover:border-ink-300'
                     }
                   >
-                    {value.toLowerCase()}
+                    {value === 'REFUNDED' ? 'record refund' : value.toLowerCase()}
                   </button>
                 ))}
               </div>
+              <p className="mt-2 text-xs text-ink-400">Process refunds with the gateway first, then record the refund here.</p>
 
               {order.payment && (
                 <p className="mt-3 text-xs text-ink-500">
-                  {order.payment.provider} · {order.payment.reference ?? 'no reference'} ·{' '}
+                  {order.payment.provider} · transaction {order.payment.reference ?? 'pending'} · gateway order{' '}
+                  {order.payment.gatewayOrderId ?? 'pending'} ·{' '}
                   {order.payment.updatedAt ? formatDateTime(order.payment.updatedAt) : 'not updated'}
                 </p>
               )}

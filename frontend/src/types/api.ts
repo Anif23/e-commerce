@@ -12,7 +12,9 @@ export type OrderStatus =
   | 'EXPIRED';
 
 export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED' | 'REFUNDED';
-export type PaymentProvider = 'COD' | 'PAYPAL' | 'STRIPE' | 'MOCK';
+/** Includes legacy provider values so historical orders remain readable. */
+export type PaymentProvider = 'COD' | 'RAZORPAY' | 'STRIPE' | 'PAYPAL' | 'MOCK';
+export type CheckoutPaymentProvider = 'COD' | 'RAZORPAY' | 'STRIPE';
 
 export interface Pagination {
   total: number;
@@ -33,6 +35,22 @@ export interface ApiItem<T> {
   success: boolean;
   data: T;
   message?: string;
+}
+
+export interface StoreSettings {
+  id: number;
+  storeName: string;
+  tagline: string;
+  logoUrl: string | null;
+  supportEmail: string;
+  supportPhone: string;
+  supportHours: string;
+  businessAddress: string;
+  taxName: string;
+  taxRatePercent: number;
+  shippingFee: number;
+  freeShippingThreshold: number;
+  updatedAt?: string | null;
 }
 
 export interface Category {
@@ -111,6 +129,10 @@ export interface CartTotals {
   shipping: number;
   tax: number;
   total: number;
+  taxName?: string;
+  taxRatePercent?: number;
+  shippingFee?: number;
+  freeShippingThreshold?: number;
   coupon: { code: string; type: string; value: number; valid: boolean; message: string | null } | null;
 }
 
@@ -176,7 +198,15 @@ export interface Order {
   deliveredAt?: string | null;
   cancelledAt?: string | null;
   expiresAt?: string | null;
-  totals: { subtotal: number; discount: number; shipping: number; tax: number; total: number };
+  totals: {
+    subtotal: number;
+    discount: number;
+    shipping: number;
+    tax: number;
+    taxName: string;
+    taxRatePercent: number;
+    total: number;
+  };
   couponCode?: string | null;
   customerNote?: string | null;
   tracking: { number: string | null; carrier: string | null; url: string | null };
@@ -188,7 +218,12 @@ export interface Order {
     status: PaymentStatus;
     amount: number;
     reference: string | null;
+    gatewayOrderId?: string | null;
     payerEmail: string | null;
+    payerContact?: string | null;
+    currency: string;
+    method?: string | null;
+    capturedAt?: string | null;
     updatedAt?: string;
   } | null;
   timeline: OrderEvent[];
@@ -284,7 +319,7 @@ export interface User {
 }
 
 export interface PaymentMethod {
-  id: PaymentProvider;
+  id: CheckoutPaymentProvider;
   label: string;
   online: boolean;
 }

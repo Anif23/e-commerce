@@ -12,17 +12,28 @@ import { useState } from 'react';
 import { assetUrl } from '../../lib/assets';
 import { formatCompact, formatPrice } from '../../lib/format';
 import { FREE_SHIPPING_THRESHOLD } from '../../lib/store';
-
-const HIGHLIGHTS = [
-  { icon: Truck, title: `Free delivery over ${formatPrice(FREE_SHIPPING_THRESHOLD)}`, text: 'Automatic at checkout, no code needed.' },
-  { icon: ShieldCheck, title: 'Secure payments', text: 'PayPal, Stripe, or pay on delivery.' },
-  { icon: Sparkles, title: 'Real-time stock', text: 'Variant-level inventory you can trust.' },
-];
+import { useAuthStore } from '../../store/authStore';
+import { useStoreSettings } from '../../hooks/queries/useStoreSettings';
+import { usePaymentMethods } from '../../hooks/queries/useOrders';
 
 export const HomePage = () => {
+  const isAuthenticated = useAuthStore((state) => Boolean(state.token));
   const [rail, setRail] = useState<'featured' | 'newest' | 'bestSellers'>('featured');
   const { data, isLoading, isError, refetch } = useFeaturedProducts();
   const { data: categories } = useCategories();
+  const { data: settings } = useStoreSettings();
+  const { data: paymentMethods } = usePaymentMethods();
+  const freeShippingThreshold = settings?.freeShippingThreshold ?? FREE_SHIPPING_THRESHOLD;
+  const onlinePaymentNames = (paymentMethods ?? []).filter((method) => method.online).map((method) => method.label);
+  const securePaymentCopy = onlinePaymentNames.length
+    ? `Secure ${onlinePaymentNames.join(' and ')} checkout`
+    : 'Cash on delivery available at checkout.';
+  const highlights = [
+    { icon: Truck, title: `Free delivery over ${formatPrice(freeShippingThreshold)}`, text: 'Automatic at checkout, no code needed.' },
+    { icon: ShieldCheck, title: 'Secure payments', text: securePaymentCopy },
+
+    { icon: Sparkles, title: 'Real-time stock', text: 'Variant-level inventory you can trust.' },
+  ];
 
   const rails = {
     featured: data?.featured ?? [],
@@ -59,8 +70,7 @@ export const HomePage = () => {
             </h1>
 
             <p className="mt-5 max-w-lg text-base text-ink-300">
-              Browse a catalogue with variant-level stock, honest reviews and live order tracking. Checkout takes less
-              than a minute.
+              {settings?.tagline ?? 'Browse a catalogue with variant-level stock, honest reviews and live order tracking.'}
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
@@ -77,7 +87,7 @@ export const HomePage = () => {
             </div>
 
             <dl className="mt-10 grid max-w-lg grid-cols-3 gap-4">
-              {HIGHLIGHTS.map((item) => (
+              {highlights.map((item) => (
                 <div key={item.title}>
                   <item.icon className="h-5 w-5 text-brand-300" />
                   <dt className="mt-2 text-sm font-semibold">{item.title}</dt>
@@ -102,6 +112,26 @@ export const HomePage = () => {
                 [0, 1, 2, 3].map((key) => <Skeleton key={key} className="aspect-square w-full rounded-2xl" />)}
             </div>
           </Reveal>
+        </div>
+      </section>
+
+      <section aria-label="Shopping benefits" className="overflow-hidden border-b border-ink-200 bg-white py-3">
+        <div className="marquee-track flex w-max">
+          {[0, 1].map((copy) => (
+            <ul key={copy} aria-hidden={copy === 1} className="flex shrink-0 items-center gap-8 px-4 sm:gap-12">
+              {[
+                'Tracked delivery from dispatch to doorstep',
+                `Free delivery over ${formatPrice(freeShippingThreshold)}`,
+                securePaymentCopy,
+                'Human support when you need it',
+              ].map((benefit) => (
+                <li key={benefit} className="flex items-center gap-2 whitespace-nowrap text-xs font-medium text-ink-600 sm:text-sm">
+                  <Sparkles aria-hidden="true" className="h-3.5 w-3.5 text-brand-600" />
+                  {benefit}
+                </li>
+              ))}
+            </ul>
+          ))}
         </div>
       </section>
 
@@ -184,16 +214,18 @@ export const HomePage = () => {
                 support ticket from any order if something looks off.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
-                <Link to="/track">
+                <Link to={isAuthenticated ? '/account/orders' : '/login'}>
                   <Button variant="secondary" className="bg-white text-brand-700 hover:bg-brand-50">
-                    Track an order
+                    {isAuthenticated ? 'View my orders' : 'Sign in to track orders'}
                   </Button>
                 </Link>
-                <Link to="/register">
-                  <Button variant="ghost" className="text-white hover:bg-white/10">
-                    Create an account
-                  </Button>
-                </Link>
+                {isAuthenticated && (
+                  <Link to="/track">
+                    <Button variant="ghost" className="text-white hover:bg-white/10">
+                      Track an order
+                    </Button>
+                  </Link>
+                )}
               </div>
             </div>
 

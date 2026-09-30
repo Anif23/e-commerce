@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
+import { env } from '../../config/env.js';
 import { prisma } from '../../lib/prisma.js';
 import { ApiError, asyncHandler } from '../../lib/errors.js';
-import { env } from '../../config/env.js';
 import { summarizeCart, serializeCart } from '../cart/cart.service.js';
 import { isOnlinePayment, placeOrder, startPayment, getOrderOrThrow, serializeOrder } from '../orders/order.service.js';
 import { isProviderAvailable, listPaymentMethods } from '../../services/payments/index.js';
@@ -10,7 +10,7 @@ import { rateLimit } from '../../middleware/rateLimit.js';
 
 const checkoutSchema = z.object({
   addressId: z.coerce.number().int().positive().optional(),
-  paymentMethod: z.enum(['COD', 'PAYPAL', 'STRIPE', 'MOCK']),
+  paymentMethod: z.enum(['COD', 'RAZORPAY', 'STRIPE']),
   customerNote: z.string().trim().max(500).optional(),
   // Lets the shopper check out with a brand new address in one step.
   address: z
@@ -44,9 +44,11 @@ export const checkoutController = {
         addresses,
         paymentMethods: listPaymentMethods(),
         shipping: {
-          fee: env.shippingFee,
-          freeShippingThreshold: env.freeShippingThreshold,
-          taxRatePercent: env.taxRatePercent,
+          fee: totals.shippingFee,
+          freeShippingThreshold: totals.freeShippingThreshold,
+          taxRatePercent: totals.taxRatePercent,
+          taxName: totals.taxName,
+          paymentWindowMinutes: env.paymentWindowMinutes,
         },
       },
     });
@@ -99,16 +101,30 @@ export const checkoutController = {
       });
 
       let payment = null;
+      let paymentStartFailed = false;
 
       if (online) {
-        payment = await startPayment({ order, provider: body.paymentMethod });
+        try {
+          payment = await startPayment({ order, provider: body.paymentMethod });
+        } catch (error) {
+          paymentStartFailed = true;
+          console.error(`[checkout] Payment initialization failed for order #${order.id}:`, error.message);
+          await prisma.payment
+            .update({
+              where: { orderId: order.id },
+              data: { status: 'FAILED', failureCode: 'GATEWAY_INIT_FAILED' },
+            })
+            .catch((updateError) => console.error('[checkout] Could not record payment initialization failure:', updateError.message));
+        }
       }
 
       res.status(201).json({
         success: true,
-        message: online
-          ? 'Order created — complete your payment to confirm it'
-          : 'Order placed successfully. Pay on delivery.',
+        message: paymentStartFailed
+          ? 'Your order was saved, but payment could not be started. You can retry from the order page.'
+          : online
+            ? 'Order created — complete your payment to confirm it'
+            : 'Order placed successfully. Pay on delivery.',
         data: {
           order: serializeOrder(order),
           payment: payment
@@ -117,7 +133,8 @@ export const checkoutController = {
                 status: payment.status,
                 ...payment.payload,
               }
-            : { provider: body.paymentMethod, status: 'PENDING' },
+            : { provider: body.paymentMethod, status: paymentStartFailed ? 'FAILED' : 'PENDING' },
+          paymentStartFailed,
         },
       });
     }),
@@ -126,13 +143,16 @@ export const checkoutController = {
   /**
    * POST /api/checkout/:orderId/pay
    * Creates (or re-creates) the gateway payment for an order that is still
-   * waiting — lets a customer resume after closing the PayPal/Stripe popup.
+   * waiting — lets a customer retry a closed or interrupted gateway flow.
    */
   pay: asyncHandler(async (req, res) => {
     const order = await getOrderOrThrow(req.params.orderId);
 
     if (order.userId !== req.user.id) throw ApiError.forbidden('This order is not yours');
     if (order.status !== 'PENDING_PAYMENT') throw ApiError.badRequest('This order is not awaiting payment');
+    if (order.expiresAt && new Date(order.expiresAt) <= new Date()) {
+      throw ApiError.badRequest('The payment window expired. Place a new order to try again.');
+    }
     if (!isOnlinePayment(order.payment?.provider)) {
       throw ApiError.badRequest('This order does not require an online payment');
     }

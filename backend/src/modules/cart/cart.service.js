@@ -1,7 +1,7 @@
 import { prisma } from '../../lib/prisma.js';
 import { buildLines, quote } from '../../services/pricing.js';
-import { env } from '../../config/env.js';
 import { cardInclude } from '../catalog/catalog.service.js';
+import { getStoreSettings } from '../store/storeSettings.service.js';
 
 /**
  * Cart reads are centralised here: every consumer (page load, coupon apply,
@@ -46,18 +46,26 @@ export const summarizeCart = async (userId, { couponCode } = {}) => {
   const code = couponCode ?? cart.couponCode;
   const coupon = await resolveCoupon(code);
 
+  const settings = await getStoreSettings();
   const lines = buildLines(cart.items);
 
-  const totals = quote({
+  const priced = quote({
     lines,
     coupon,
     userUsageCount: coupon ? await couponUsageCount(coupon.id, userId) : 0,
-    shippingFee: env.shippingFee,
-    freeShippingThreshold: env.freeShippingThreshold,
-    taxRatePercent: env.taxRatePercent,
+    shippingFee: settings.shippingFee,
+    freeShippingThreshold: settings.freeShippingThreshold,
+    taxRatePercent: settings.taxRatePercent,
   });
+  const totals = {
+    ...priced,
+    taxName: settings.taxName,
+    taxRatePercent: settings.taxRatePercent,
+    shippingFee: settings.shippingFee,
+    freeShippingThreshold: settings.freeShippingThreshold,
+  };
 
-  return { cart, lines, coupon, totals };
+  return { cart, lines, coupon, totals, settings };
 };
 
 export const serializeCart = (cart, lines, totals) => ({

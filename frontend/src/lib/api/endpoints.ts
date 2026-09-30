@@ -8,6 +8,7 @@ import type {
   Cart,
   Category,
   Coupon,
+  CheckoutPaymentProvider,
   DashboardStats,
   InventoryRow,
   Notification,
@@ -20,6 +21,7 @@ import type {
   PaymentStatus,
   Product,
   ProductFilters,
+  StoreSettings,
   ProductReview,
   ReportOverview,
   SupportTicket,
@@ -36,6 +38,10 @@ export type Query = Record<string, string | number | boolean | string[] | undefi
 
 const qs = (params: Query = {}) =>
   Object.fromEntries(Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== ''));
+
+export const storeApi = {
+  settings: () => api.get<ApiItem<StoreSettings>>('/store/settings'),
+};
 
 export const authApi = {
   register: (payload: { username: string; email: string; password: string }) =>
@@ -102,11 +108,11 @@ export const addressApi = {
 
 export const checkoutApi = {
   summary: () =>
-    api.get<ApiItem<{ cart: Cart; addresses: Address[]; paymentMethods: PaymentMethod[]; shipping: { fee: number; freeShippingThreshold: number; taxRatePercent: number } }>>(
+    api.get<ApiItem<{ cart: Cart; addresses: Address[]; paymentMethods: PaymentMethod[]; shipping: { fee: number; freeShippingThreshold: number; taxRatePercent: number; taxName: string; paymentWindowMinutes: number } }>>(
       '/checkout/summary',
     ),
-  place: (payload: { addressId?: number; paymentMethod: PaymentProvider; customerNote?: string; address?: Partial<Address> & { save?: boolean } }) =>
-    api.post<{ success: boolean; message: string; data: { order: Order; payment: { provider: PaymentProvider; status: string; [key: string]: unknown } } }>(
+  place: (payload: { addressId?: number; paymentMethod: CheckoutPaymentProvider; customerNote?: string; address?: Partial<Address> & { save?: boolean } }) =>
+    api.post<{ success: boolean; message: string; data: { order: Order; payment: { provider: PaymentProvider; status: string; [key: string]: unknown }; paymentStartFailed?: boolean } }>(
       '/checkout',
       payload,
     ),
@@ -116,7 +122,7 @@ export const checkoutApi = {
 export const paymentsApi = {
   methods: () => api.get<ApiList<PaymentMethod>>('/payments/methods'),
   confirm: (orderId: number, payload: Record<string, unknown> = {}) =>
-    api.post<{ success: boolean; message: string; data: { order: Order } }>('/payments/confirm', { orderId, payload }),
+    api.post<{ success: boolean; message: string; data: { order: Order; paymentPending?: boolean; paymentLate?: boolean } }>('/payments/confirm', { orderId, payload }),
   fail: (orderId: number) => api.post(`/payments/${orderId}/fail`),
 };
 
@@ -177,12 +183,22 @@ export const todosApi = {
 };
 
 export const announcementsApi = {
-  active: () => api.get<ApiItem<Announcement | null>>('/announcements/active'),
+  active: () => api.get<ApiList<Announcement>>('/announcements/active'),
 };
 
 /* ------------------------------- admin API ------------------------------- */
 
 export const adminApi = {
+  storeSettings: () => api.get<ApiItem<StoreSettings>>('/admin/settings'),
+  updateStoreSettings: (payload: Partial<StoreSettings>) =>
+    api.put<ApiItem<StoreSettings>>('/admin/settings', payload),
+  uploadStoreLogo: (file: File) => {
+    const form = new FormData();
+    form.append('logo', file);
+    return api.post<ApiItem<StoreSettings>>('/admin/settings/logo', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
   dashboard: () => api.get<ApiItem<DashboardStats>>('/admin/dashboard'),
   activity: () => api.get<ApiList<Notification>>('/admin/dashboard/activity'),
 

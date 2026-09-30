@@ -50,6 +50,7 @@ export const CartPage = () => {
   }
 
   const totals = cart.totals;
+  const freeShippingThreshold = totals?.freeShippingThreshold ?? FREE_SHIPPING_THRESHOLD;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
@@ -195,7 +196,7 @@ export const CartPage = () => {
                     </dd>
                   </div>
                   <div className="flex justify-between">
-                    <dt className="text-ink-500">Tax</dt>
+                    <dt className="text-ink-500">{totals.taxName ?? 'Tax'}{totals.taxRatePercent !== undefined ? ` (${totals.taxRatePercent}%)` : ''}</dt>
                     <dd className="font-medium text-ink-900">{formatPrice(totals.tax)}</dd>
                   </div>
                 </>
@@ -229,7 +230,7 @@ export const CartPage = () => {
 
             {totals && totals.shipping > 0 && (
               <p className="mt-4 text-center text-xs text-ink-400">
-                Spend {formatPrice(FREE_SHIPPING_THRESHOLD - cart.subtotal)} more to unlock{' '}
+                Spend {formatPrice(Math.max(0, freeShippingThreshold - cart.subtotal))} more to unlock{' '}
                 <Badge tone="success">free shipping</Badge>
               </p>
             )}

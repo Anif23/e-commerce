@@ -1,4 +1,3 @@
-import express from 'express';
 import { Router } from 'express';
 
 import { paymentsController } from './payments.controller.js';
@@ -7,13 +6,8 @@ import { authMiddleware } from '../../middleware/auth.js';
 export const paymentsRoutes = Router();
 
 paymentsRoutes.get('/methods', paymentsController.methods);
-
-// Stripe needs the raw body for signature verification.
-paymentsRoutes.post(
-  '/stripe/webhook',
-  express.raw({ type: 'application/json' }),
-  paymentsController.stripeWebhook,
-);
+paymentsRoutes.post('/stripe/webhook', paymentsController.stripeWebhook);
+paymentsRoutes.post('/razorpay/webhook', paymentsController.razorpayWebhook);
 
 paymentsRoutes.use(authMiddleware);
 

@@ -22,32 +22,32 @@ export const AccountLayout = () => {
   const { data: stats } = useOrderStats();
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-      <header className="surface mb-8 flex flex-wrap items-center gap-4 p-5">
-        <span className="grid h-14 w-14 place-items-center rounded-2xl bg-brand-600 text-lg font-semibold text-white">
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
+      <header className="surface mb-6 flex flex-col gap-4 p-4 sm:mb-8 sm:flex-row sm:items-center sm:p-5">
+        <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-brand-600 text-lg font-semibold text-white">
           {initialsOf(user?.username ?? 'You')}
         </span>
 
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h1 className="truncate text-lg font-semibold text-ink-900">{user?.username}</h1>
           <p className="truncate text-sm text-ink-500">{user?.email}</p>
         </div>
 
-        <div className="ml-auto flex gap-6">
-          <div className="text-right">
+        <div className="grid w-full grid-cols-2 gap-4 border-t border-ink-100 pt-3 sm:w-auto sm:gap-6 sm:border-0 sm:pt-0">
+          <div className="sm:text-right">
             <p className="text-lg font-semibold text-ink-900">{stats?.total ?? 0}</p>
             <p className="text-xs text-ink-500">Orders</p>
           </div>
-          <div className="text-right">
+          <div className="sm:text-right">
             <p className="text-lg font-semibold text-ink-900">{notifications?.unread ?? 0}</p>
             <p className="text-xs text-ink-500">Unread</p>
           </div>
         </div>
       </header>
 
-      <div className="grid gap-8 lg:grid-cols-4">
-        <aside>
-          <nav className="surface sticky top-24 flex gap-1 overflow-x-auto p-2 lg:flex-col lg:overflow-visible">
+      <div className="grid min-w-0 gap-5 lg:grid-cols-4 lg:gap-8">
+        <aside className="min-w-0">
+          <nav className="surface grid grid-cols-2 gap-1 p-2 sm:grid-cols-3 lg:sticky lg:top-24 lg:flex lg:flex-col">
             {LINKS.map((link) => (
               <NavLink
                 key={link.to}
@@ -55,13 +55,13 @@ export const AccountLayout = () => {
                 end={link.end}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center gap-2.5 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-medium transition',
+                    'flex min-w-0 items-center gap-2 rounded-xl px-2.5 py-2.5 text-xs font-medium transition sm:gap-2.5 sm:px-3 sm:text-sm',
                     isActive ? 'bg-brand-50 text-brand-700' : 'text-ink-600 hover:bg-ink-50 hover:text-ink-900',
                   )
                 }
               >
-                <link.icon className="h-4 w-4" />
-                {link.label}
+                <link.icon className="h-4 w-4 shrink-0" />
+                <span className="truncate">{link.label}</span>
               </NavLink>
             ))}
           </nav>

@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Send } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
 import { formatDateTime, formatRelative } from '../../lib/format';
 import { Button } from '../../components/ui/Button';
-import { Select } from '../../components/ui/Field';
+import { Select, Textarea } from '../../components/ui/Field';
 import { Badge, EmptyState, ErrorState, PageHeader, Pagination, Tabs } from '../../components/ui';
 import { Skeleton } from '../../components/ui/Feedback';
 import { useAdminSupport, useAdminSupportMutations, useAdminSupportTicket } from '../../hooks/queries/useAdmin';
@@ -17,11 +17,46 @@ const TONE: Record<SupportTicket['status'], 'warning' | 'brand' | 'success' | 'n
   CLOSED: 'neutral',
 };
 
+const ReplyComposer = ({
+  loading,
+  onSend,
+}: {
+  loading: boolean;
+  onSend: (message: string) => Promise<void>;
+}) => {
+  const [message, setMessage] = useState('');
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmed = message.trim();
+    if (!trimmed || loading) return;
+    await onSend(trimmed);
+    setMessage('');
+  };
+
+  return (
+    <form onSubmit={submit} className="flex shrink-0 items-end gap-2 border-t border-ink-200 p-4">
+      <div className="min-w-0 flex-1">
+        <Textarea
+          aria-label="Write a reply"
+          value={message}
+          onChange={(event) => setMessage(event.target.value)}
+          rows={2}
+          placeholder="Write a reply…"
+          className="min-w-0"
+        />
+      </div>
+      <Button type="submit" loading={loading} disabled={!message.trim()} leftIcon={<Send className="h-4 w-4" />}>
+        Reply
+      </Button>
+    </form>
+  );
+};
+
 export const AdminSupportPage = () => {
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [reply, setReply] = useState('');
 
   const { data, isLoading, isError, refetch } = useAdminSupport({ status: status || undefined, page, limit: 20 });
   const { data: ticket } = useAdminSupportTicket(selectedId ?? undefined);
@@ -29,22 +64,8 @@ export const AdminSupportPage = () => {
 
   const tickets = data?.data ?? [];
 
-  // Open the newest ticket by default so the queue never looks empty, and clear
-  // the composer when the selection changes — both derived, not effect-driven.
-  const [replyOwner, setReplyOwner] = useState<number | null>(null);
+  // Open the newest ticket by default so the queue never looks empty.
   if (!selectedId && tickets.length) setSelectedId(tickets[0].id);
-  if (selectedId !== replyOwner) {
-    setReplyOwner(selectedId);
-    setReply('');
-  }
-
-  const submitReply = async () => {
-    if (!selectedId || reply.trim().length < 1) return;
-
-    const message = reply.trim();
-    setReply('');
-    await sendReply.mutateAsync({ id: selectedId, message });
-  };
 
   return (
     <div className="space-y-6">
@@ -167,23 +188,13 @@ export const AdminSupportPage = () => {
                   ))}
                 </div>
 
-                <div className="flex items-end gap-2 border-t border-ink-200 p-4">
-                  <textarea
-                    value={reply}
-                    onChange={(event) => setReply(event.target.value)}
-                    rows={2}
-                    placeholder="Write a reply…"
-                    className="flex-1 resize-none rounded-xl border border-ink-300 px-3.5 py-2.5 text-sm focus:border-brand-500 focus:outline-none"
-                  />
-                  <Button
-                    onClick={submitReply}
-                    loading={sendReply.isPending}
-                    disabled={reply.trim().length < 1}
-                    leftIcon={<Send className="h-4 w-4" />}
-                  >
-                    Reply
-                  </Button>
-                </div>
+                <ReplyComposer
+                  key={ticket.id}
+                  loading={sendReply.isPending}
+                  onSend={async (message) => {
+                    await sendReply.mutateAsync({ id: ticket.id, message });
+                  }}
+                />
               </>
             )}
           </section>

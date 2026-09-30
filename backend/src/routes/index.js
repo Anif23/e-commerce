@@ -13,6 +13,7 @@ import { promotionsRoutes } from '../modules/promotions/promotions.routes.js';
 import { announcementsController } from '../modules/promotions/announcements.controller.js';
 import { adminRoutes } from '../modules/admin/admin.routes.js';
 import { todosController } from '../modules/todos/todos.controller.js';
+import { storeSettingsController } from '../modules/store/storeSettings.controller.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 export const apiRoutes = Router();
@@ -20,6 +21,8 @@ export const apiRoutes = Router();
 apiRoutes.get('/health', (_req, res) => {
   res.json({ success: true, data: { status: 'ok', uptime: process.uptime() } });
 });
+
+apiRoutes.get('/store/settings', storeSettingsController.public);
 
 apiRoutes.use('/auth', authRoutes);
 

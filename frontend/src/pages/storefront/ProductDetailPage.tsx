@@ -24,6 +24,7 @@ import { ProductGrid } from '../../components/common/ProductGrid';
 import { SectionHeader } from '../../components/common/SectionHeader';
 import { useProduct, useProductReviews } from '../../hooks/queries/useCatalog';
 import { useCartMutations } from '../../hooks/queries/useCart';
+import { useStoreSettings } from '../../hooks/queries/useStoreSettings';
 import { useWishlist, useWishlistMutations, useReviewMutations } from '../../hooks/queries/useAccount';
 import { useAuthStore } from '../../store/authStore';
 import { reviewsApi } from '../../lib/api/endpoints';
@@ -182,6 +183,7 @@ export const ProductDetailPage = () => {
 
   const isAuthed = useAuthStore((state) => Boolean(state.token));
   const { data: product, isLoading, isError, refetch } = useProduct(slug);
+  const { data: storeSettings } = useStoreSettings();
   const { data: reviewData } = useProductReviews(slug, reviewPage);
   const { addItem } = useCartMutations();
   const { ids: wishlistIds } = useWishlist();
@@ -383,7 +385,7 @@ export const ProductDetailPage = () => {
           <ul className="mt-8 grid gap-3 border-t border-ink-200 pt-6 text-sm sm:grid-cols-2">
             <li className="flex items-center gap-2 text-ink-600">
               <Truck className="h-4 w-4 text-brand-600" /> Free delivery over{' '}
-              {formatPrice(FREE_SHIPPING_THRESHOLD)}
+              {formatPrice(storeSettings?.freeShippingThreshold ?? FREE_SHIPPING_THRESHOLD)}
             </li>
             <li className="flex items-center gap-2 text-ink-600">
               <RotateCcw className="h-4 w-4 text-brand-600" /> 30-day returns

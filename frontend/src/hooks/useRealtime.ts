@@ -3,35 +3,26 @@ import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 
 import { disconnectSocket, getSocket } from '../lib/socket';
+import { refreshSession } from '../lib/api/client';
 import { queryKeys } from '../lib/queryKeys';
 import { useAuthStore } from '../store/authStore';
 
-/**
- * Subscribes to the store's real-time events while a session is active.
- * Each event refreshes the queries that could have changed instead of pushing
- * raw payloads into component state.
- */
+/** Realtime events invalidate canonical server data; missed events self-heal on refetch. */
 export const useRealtime = () => {
   const queryClient = useQueryClient();
   const token = useAuthStore((state) => state.token);
   const user = useAuthStore((state) => state.user);
+  const sessionReady = useAuthStore((state) => state.sessionReady);
 
   useEffect(() => {
+    if (!sessionReady) return;
     if (!token || !user) {
       disconnectSocket();
       return;
     }
 
-    const socket = getSocket();
-    const isAdmin = user.role === 'ADMIN';
-
-    const join = () => {
-      socket.emit('join', user.id);
-      if (isAdmin) socket.emit('joinAdmin');
-    };
-
-    socket.on('connect', join);
-    if (socket.connected) join();
+    const socket = getSocket(token);
+    let refreshingSocketSession = false;
 
     const onNotification = (payload: { title?: string; message?: string; link?: string | null }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications });
@@ -54,21 +45,38 @@ export const useRealtime = () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.support({}) });
     };
 
+    const onConnectError = async (error: Error) => {
+      if (!/expired|invalid|authentication required|session is not active/i.test(error.message) || refreshingSocketSession) {
+        return;
+      }
+
+      refreshingSocketSession = true;
+      try {
+        await refreshSession();
+      } catch (refreshError) {
+        const status = (refreshError as { response?: { status?: number } }).response?.status;
+        if (status === 401 || status === 403) useAuthStore.getState().clearSession();
+      } finally {
+        refreshingSocketSession = false;
+      }
+    };
+
     socket.on('notification', onNotification);
     socket.on('admin_notification', onNotification);
     socket.on('order_updated', onOrderUpdated);
     socket.on('admin_order_updated', onOrderUpdated);
     socket.on('support_update', onSupport);
     socket.on('admin_support', onSupport);
+    socket.on('connect_error', onConnectError);
 
     return () => {
-      socket.off('connect', join);
       socket.off('notification', onNotification);
       socket.off('admin_notification', onNotification);
       socket.off('order_updated', onOrderUpdated);
       socket.off('admin_order_updated', onOrderUpdated);
       socket.off('support_update', onSupport);
       socket.off('admin_support', onSupport);
+      socket.off('connect_error', onConnectError);
     };
-  }, [token, user, queryClient]);
+  }, [token, user, sessionReady, queryClient]);
 };

@@ -141,8 +141,8 @@ describe('guards', () => {
   it('only offers payment methods that are configured', async () => {
     const response = await request(app).get('/api/payments/methods').expect(200);
 
-    // Tests run with PAYMENT_MODE=mock: cash on delivery + the simulator.
-    expect(response.body.data.map((method) => method.id).sort()).toEqual(['COD', 'MOCK']);
+    // Without gateway credentials, only the real COD method is available.
+    expect(response.body.data.map((method) => method.id)).toEqual(['COD']);
   });
 
   it('enforces coupon rules', async () => {

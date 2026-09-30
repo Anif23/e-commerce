@@ -9,6 +9,7 @@ import {
   Megaphone,
   Menu,
   Package,
+  Settings,
   Store,
   Tag,
   TicketPercent,
@@ -18,7 +19,9 @@ import {
 } from 'lucide-react';
 
 import { cn } from '../lib/cn';
+import { assetUrl } from '../lib/assets';
 import { STORE_LOGO, STORE_NAME } from '../lib/store';
+import { useStoreSettings } from '../hooks/queries/useStoreSettings';
 import { initialsOf } from '../lib/format';
 import { useAuthStore } from '../store/authStore';
 import { useLogout } from '../hooks/queries/useAuth';
@@ -55,11 +58,16 @@ const GROUPS = [
     label: 'Service',
     links: [{ to: '/admin/support', label: 'Support', icon: Bell, end: false }],
   },
+  {
+    label: 'Store',
+    links: [{ to: '/admin/settings', label: 'Settings', icon: Settings, end: false }],
+  },
 ];
 
 export const AdminLayout = () => {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
+  const { data: storeSettings } = useStoreSettings();
   const logout = useLogout();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { data: notifications } = useAdminNotifications();
@@ -109,11 +117,13 @@ export const AdminLayout = () => {
     <div className="min-h-screen bg-ink-50">
       <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-ink-200 bg-white lg:flex">
         <div className="flex h-16 items-center gap-2 border-b border-ink-200 px-5">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-600 text-sm font-bold text-white">
-            {STORE_LOGO}
+          <span className="grid h-8 w-8 place-items-center overflow-hidden rounded-lg bg-brand-600 text-sm font-bold text-white">
+            {storeSettings?.logoUrl ? (
+              <img src={assetUrl(storeSettings.logoUrl)} alt="" className="h-full w-full object-contain" />
+            ) : STORE_LOGO}
           </span>
           <div>
-            <p className="text-sm font-semibold leading-tight text-ink-900">{STORE_NAME}</p>
+            <p className="text-sm font-semibold leading-tight text-ink-900">{storeSettings?.storeName ?? STORE_NAME}</p>
             <p className="text-[11px] text-ink-400">Admin console</p>
           </div>
         </div>
@@ -133,9 +143,14 @@ export const AdminLayout = () => {
       </aside>
 
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-ink-900/40 backdrop-blur-sm animate-fade-in" onClick={() => setMobileOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 flex w-72 flex-col bg-white shadow-xl animate-slide-right">
+        <div className="fixed inset-0 z-[60] lg:hidden">
+          <button
+            type="button"
+            aria-label="Close navigation"
+            className="absolute inset-0 bg-ink-900/40 backdrop-blur-sm animate-fade-in"
+            onClick={() => setMobileOpen(false)}
+          />
+          <aside className="absolute inset-y-0 left-0 z-10 flex w-72 max-w-[88vw] flex-col bg-white shadow-xl animate-slide-right">
             <div className="flex h-16 items-center justify-between border-b border-ink-200 px-4">
               <span className="font-semibold text-ink-900">Admin</span>
               <IconButton label="Close menu" onClick={() => setMobileOpen(false)}>
