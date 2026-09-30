@@ -17,15 +17,15 @@ export const announcementsController = {
   active: asyncHandler(async (_req, res) => {
     const now = new Date();
 
-    const announcement = await prisma.announcement.findFirst({
+    const announcements = await prisma.announcement.findMany({
       where: {
         isActive: true,
         AND: [{ OR: [{ startAt: null }, { startAt: { lte: now } }] }, { OR: [{ endAt: null }, { endAt: { gte: now } }] }],
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
 
-    res.json({ success: true, data: announcement });
+    res.json({ success: true, data: announcements });
   }),
 
   list: asyncHandler(async (_req, res) => {

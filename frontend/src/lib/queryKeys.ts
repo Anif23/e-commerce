@@ -7,6 +7,7 @@ export const queryKeys = {
   categories: ['categories'] as const,
   featured: ['featured'] as const,
   announcement: ['announcement'] as const,
+  storeSettings: ['store-settings'] as const,
 
   cart: ['cart'] as const,
   checkoutSummary: ['checkout-summary'] as const,
@@ -32,6 +33,7 @@ export const queryKeys = {
   todos: ['todos'] as const,
 
   admin: {
+    storeSettings: ['admin', 'store-settings'] as const,
     dashboard: ['admin', 'dashboard'] as const,
     activity: ['admin', 'activity'] as const,
     reports: (range: string) => ['admin', 'reports', range] as const,

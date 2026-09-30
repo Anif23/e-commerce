@@ -2,6 +2,7 @@ import { prisma } from '../../lib/prisma.js';
 import { ApiError } from '../../lib/errors.js';
 import { env } from '../../config/env.js';
 import { summarizeCart } from '../cart/cart.service.js';
+import { getStoreSettings } from '../store/storeSettings.service.js';
 import { round2 } from '../../lib/money.js';
 import { assertStockAvailable, applyStockChange } from '../../services/inventory.js';
 import { createPayment } from '../../services/payments/index.js';
@@ -14,7 +15,39 @@ import { emitOrderUpdate } from '../../realtime/socket.js';
  * audit trail rather than something reconstructed from timestamps.
  */
 
-const ONLINE_PROVIDERS = ['PAYPAL', 'STRIPE', 'MOCK'];
+const ONLINE_PROVIDERS = ['RAZORPAY', 'STRIPE'];
+
+class PaymentStockUnavailable extends Error {}
+
+const reserveStockForPaidOrder = async (tx, item, orderId) => {
+  const quantity = Math.abs(Number(item.quantity) || 0);
+  const reason = `Order #${orderId} paid`;
+
+  if (item.variantId) {
+    const variant = await tx.productVariant.updateMany({
+      where: { id: item.variantId, productId: item.productId, stock: { gte: quantity } },
+      data: { stock: { decrement: quantity } },
+    });
+    if (!variant.count) throw new PaymentStockUnavailable('Stock changed before payment confirmation');
+
+    const product = await tx.product.updateMany({
+      where: { id: item.productId, stock: { gte: quantity } },
+      data: { stock: { decrement: quantity } },
+    });
+    if (!product.count) throw new PaymentStockUnavailable('Product stock changed before payment confirmation');
+
+    await tx.stockLog.create({ data: { productId: item.productId, variantId: item.variantId, change: -quantity, reason } });
+  } else {
+    const product = await tx.product.updateMany({
+      where: { id: item.productId, stock: { gte: quantity } },
+      data: { stock: { decrement: quantity } },
+    });
+    if (!product.count) throw new PaymentStockUnavailable('Stock changed before payment confirmation');
+    await tx.stockLog.create({ data: { productId: item.productId, change: -quantity, reason } });
+  }
+
+  await tx.product.update({ where: { id: item.productId }, data: { soldCount: { increment: quantity } } });
+};
 
 export const isOnlinePayment = (provider) => ONLINE_PROVIDERS.includes(provider);
 
@@ -52,6 +85,8 @@ export const serializeOrder = (order) => ({
     discount: round2(order.discount),
     shipping: round2(order.shipping),
     tax: round2(order.tax),
+    taxName: order.taxName,
+    taxRatePercent: order.taxRatePercent,
     total: round2(order.total),
   },
   couponCode: order.couponCode,
@@ -81,7 +116,12 @@ export const serializeOrder = (order) => ({
         status: order.payment.status,
         amount: round2(order.payment.amount),
         reference: order.payment.paymentId,
+        gatewayOrderId: order.payment.gatewayOrderId,
         payerEmail: order.payment.payerEmail,
+        payerContact: order.payment.payerContact,
+        currency: order.payment.currency,
+        method: order.payment.method,
+        capturedAt: order.payment.capturedAt,
         updatedAt: order.payment.updatedAt,
       }
     : null,
@@ -98,6 +138,22 @@ export const serializeOrder = (order) => ({
 /** Appends an event to the tracking timeline. */
 export const addEvent = async (tx, { orderId, status, message, actor = 'system' }) =>
   tx.orderEvent.create({ data: { orderId, status, message, actor } });
+
+const recordSuccessfulPayment = (tx, order, result) =>
+  tx.payment.update({
+    where: { orderId: order.id },
+    data: {
+      status: 'SUCCESS',
+      paymentId: result.reference ?? order.payment?.paymentId ?? null,
+      payerEmail: result.payerEmail ?? null,
+      payerId: result.payerId ?? null,
+      payerContact: result.payerContact ?? null,
+      method: result.method ?? null,
+      currency: result.currency ?? order.payment?.currency ?? env.currency,
+      capturedAt: new Date(),
+      failureCode: null,
+    },
+  });
 
 const bookCouponUsage = async (tx, { couponId, userId, orderId }) => {
   if (!couponId) return;
@@ -157,6 +213,8 @@ export const placeOrder = async ({ userId, addressId, provider, customerNote }) 
         discount: totals.discount,
         shipping: totals.shipping,
         tax: totals.tax,
+        taxName: totals.taxName,
+        taxRatePercent: totals.taxRatePercent,
         total: totals.total,
         couponId: coupon?.id ?? null,
         couponCode: totals.discount > 0 ? coupon.code : null,
@@ -181,6 +239,7 @@ export const placeOrder = async ({ userId, addressId, provider, customerNote }) 
       data: {
         orderId: created.id,
         amount: totals.total,
+        currency: env.currency,
         provider,
         status: 'PENDING',
       },
@@ -240,8 +299,11 @@ export const placeOrder = async ({ userId, addressId, provider, customerNote }) 
  * Finalises a payment: marks the order paid, reserves stock, clears the cart.
  * Runs inside its own transaction so a gateway callback can never half-apply.
  */
-export const finalizePayment = async ({ order, result }) =>
-  prisma.$transaction(async (tx) => {
+export const finalizePayment = async ({ order, result }) => {
+  try {
+    return await prisma.$transaction(async (tx) => {
+    // Serialize browser confirmations and asynchronous webhooks for one order.
+    await tx.$queryRaw`SELECT "id" FROM "Order" WHERE "id" = ${order.id} FOR UPDATE`;
     const current = await tx.order.findUnique({
       where: { id: order.id },
       include: { items: true, payment: true },
@@ -249,55 +311,71 @@ export const finalizePayment = async ({ order, result }) =>
 
     if (!current) throw ApiError.notFound('Order not found');
 
-    if (current.status === 'PAID' || current.status === 'DELIVERED') {
+    if (
+      ['EXPIRED', 'CANCELLED'].includes(current.status) &&
+      result.status === 'SUCCESS' &&
+      current.payment &&
+      current.payment.status !== 'SUCCESS'
+    ) {
+      await recordSuccessfulPayment(tx, current, result);
+      await addEvent(tx, {
+        orderId: current.id,
+        status: current.status,
+        message: `Late payment received via ${current.payment.provider}; refund review required`,
+        actor: 'system',
+      });
+      return { latePayment: true, alreadyProcessed: false, order: current };
+    }
+
+    if (current.status !== 'PENDING_PAYMENT' || current.payment?.status === 'SUCCESS') {
       return { alreadyProcessed: true, order: current };
     }
 
-    if (current.payment?.status === 'SUCCESS') {
-      return { alreadyProcessed: true, order: current };
+    if (result.status === 'PENDING') {
+      return { alreadyProcessed: false, pending: true, order: current };
     }
 
     if (result.status !== 'SUCCESS') {
       await tx.payment.update({
         where: { orderId: current.id },
-        data: { status: 'FAILED', failureCode: result.failureCode ?? null, paymentId: result.reference ?? null },
+        data: {
+          status: 'FAILED',
+          failureCode: result.failureCode ?? null,
+          ...(result.reference ? { paymentId: result.reference } : {}),
+        },
       });
 
       return { alreadyProcessed: false, failed: true, order: current };
     }
 
-    // Re-check expiry: a slow gateway callback must not resurrect a dead order.
+    // Re-check expiry: a late gateway callback must not resurrect an expired order.
     if (current.expiresAt && new Date(current.expiresAt) < new Date()) {
-      await tx.order.update({ where: { id: current.id }, data: { status: 'EXPIRED' } });
-      await tx.payment.update({ where: { orderId: current.id }, data: { status: 'FAILED', failureCode: 'EXPIRED' } });
-      throw ApiError.badRequest('The payment window for this order has expired');
+      await tx.order.update({ where: { id: current.id }, data: { status: 'EXPIRED', expiresAt: null } });
+      await recordSuccessfulPayment(tx, current, result);
+      await addEvent(tx, {
+        orderId: current.id,
+        status: 'EXPIRED',
+        message: `Late payment received via ${current.payment?.provider ?? 'gateway'}; refund review required`,
+        actor: 'system',
+      });
+      return { latePayment: true, alreadyProcessed: false, expired: true, order: current };
     }
 
-    await tx.payment.update({
-      where: { orderId: current.id },
-      data: {
-        status: 'SUCCESS',
-        paymentId: result.reference ?? null,
-        payerEmail: result.payerEmail ?? null,
-        payerId: result.payerId ?? null,
-        failureCode: null,
-      },
-    });
-
-    const updated = await tx.order.update({
-      where: { id: current.id },
+    // A conditional update is the concurrency guard: webhook and browser
+    // confirmation may race, but only one transaction can reserve stock.
+    const claimed = await tx.order.updateMany({
+      where: { id: current.id, status: 'PENDING_PAYMENT' },
       data: { status: 'PAID', expiresAt: null },
     });
 
-    for (const item of current.items) {
-      await applyStockChange(tx, {
-        productId: item.productId,
-        variantId: item.variantId ?? null,
-        change: -Math.abs(item.quantity),
-        reason: `Order #${current.id} paid`,
-      });
+    if (claimed.count === 0) return { alreadyProcessed: true, order: current };
 
-      await tx.product.update({ where: { id: item.productId }, data: { soldCount: { increment: item.quantity } } });
+    await recordSuccessfulPayment(tx, current, result);
+
+    const updated = await tx.order.findUnique({ where: { id: current.id } });
+
+    for (const item of current.items) {
+      await reserveStockForPaidOrder(tx, item, current.id);
     }
 
     await bookCouponUsage(tx, {
@@ -316,39 +394,95 @@ export const finalizePayment = async ({ order, result }) =>
     });
 
     return { alreadyProcessed: false, failed: false, order: updated };
-  });
+    });
+  } catch (error) {
+    if (!(error instanceof PaymentStockUnavailable) || result.status !== 'SUCCESS') throw error;
+
+    return prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "Order" WHERE "id" = ${order.id} FOR UPDATE`;
+      const current = await tx.order.findUnique({
+        where: { id: order.id },
+        include: { payment: true },
+      });
+      if (!current) throw ApiError.notFound('Order not found');
+      if (
+        ['EXPIRED', 'CANCELLED'].includes(current.status) &&
+        current.payment?.status !== 'SUCCESS'
+      ) {
+        await recordSuccessfulPayment(tx, current, result);
+        await addEvent(tx, {
+          orderId: current.id,
+          status: current.status,
+          message: 'Payment captured but stock is no longer available; refund review required',
+          actor: 'system',
+        });
+        return { latePayment: true, stockUnavailable: true, alreadyProcessed: false, order: current };
+      }
+      if (current.status !== 'PENDING_PAYMENT' || current.payment?.status === 'SUCCESS') {
+        return { alreadyProcessed: true, order: current };
+      }
+
+      const expired = Boolean(current.expiresAt && new Date(current.expiresAt) < new Date());
+      const status = expired ? 'EXPIRED' : 'CANCELLED';
+      await tx.order.update({
+        where: { id: current.id },
+        data: { status, expiresAt: null, ...(expired ? {} : { cancelledAt: new Date() }) },
+      });
+      await recordSuccessfulPayment(tx, current, result);
+      await addEvent(tx, {
+        orderId: current.id,
+        status,
+        message: 'Payment captured but stock is no longer available; refund review required',
+        actor: 'system',
+      });
+
+      return { latePayment: true, stockUnavailable: true, expired, alreadyProcessed: false, order: current };
+    });
+  }
+};
 
 /** Cancels an order and restores stock when it had already been reserved. */
 export const cancelOrder = async ({ order, reason = 'Cancelled by customer', actor = 'customer' }) => {
-  if (['CANCELLED', 'DELIVERED', 'EXPIRED'].includes(order.status)) {
-    throw ApiError.badRequest(`An order that is ${order.status.toLowerCase()} cannot be cancelled`);
-  }
-
-  const stockWasReserved = ['PAID', 'PROCESSING', 'SHIPPED'].includes(order.status);
+  let refundReview = false;
 
   await prisma.$transaction(async (tx) => {
-    await tx.order.update({
+    await tx.$queryRaw`SELECT "id" FROM "Order" WHERE "id" = ${order.id} FOR UPDATE`;
+    const current = await tx.order.findUnique({
       where: { id: order.id },
-      data: { status: 'CANCELLED', cancelledAt: new Date() },
+      include: { items: true, payment: true },
     });
 
-    if (order.payment) {
+    if (!current) throw ApiError.notFound('Order not found');
+    if (['CANCELLED', 'DELIVERED', 'EXPIRED'].includes(current.status)) {
+      throw ApiError.badRequest(`An order that is ${current.status.toLowerCase()} cannot be cancelled`);
+    }
+
+    const stockWasReserved = ['PAID', 'PROCESSING', 'SHIPPED'].includes(current.status);
+    const changed = await tx.order.updateMany({
+      where: { id: current.id, status: current.status },
+      data: { status: 'CANCELLED', cancelledAt: new Date() },
+    });
+    if (!changed.count) throw ApiError.conflict('This order changed while it was being cancelled');
+
+    if (current.payment?.status === 'SUCCESS') {
+      // Keep the capture visible until a real refund has been processed.
+      refundReview = true;
+    } else if (current.payment) {
       await tx.payment.update({
-        where: { orderId: order.id },
+        where: { orderId: current.id },
         data: { status: 'CANCELLED', failureCode: 'ORDER_CANCELLED' },
       });
     }
 
     if (stockWasReserved) {
-      for (const item of order.items) {
+      for (const item of current.items) {
         await applyStockChange(tx, {
           productId: item.productId,
           variantId: item.variantId ?? null,
           change: Math.abs(item.quantity),
-          reason: `Order #${order.id} cancelled`,
+          reason: `Order #${current.id} cancelled`,
         });
 
-        // Only give back the units this order actually sold, and never below zero.
         await tx.product.update({
           where: { id: item.productId },
           data: { soldCount: { decrement: Math.max(0, Number(item.quantity) || 0) } },
@@ -356,7 +490,7 @@ export const cancelOrder = async ({ order, reason = 'Cancelled by customer', act
       }
     }
 
-    await addEvent(tx, { orderId: order.id, status: 'CANCELLED', message: reason, actor });
+    await addEvent(tx, { orderId: current.id, status: 'CANCELLED', message: reason, actor });
   });
 
   const updated = await getOrderOrThrow(order.id);
@@ -369,21 +503,36 @@ export const cancelOrder = async ({ order, reason = 'Cancelled by customer', act
     link: `/orders/${order.id}`,
   });
 
+  if (refundReview) {
+    await createAdminNotification({
+      title: 'Cancelled prepaid order needs refund review',
+      message: `Order #${order.id} was cancelled after payment was captured. Review its refund.`,
+      type: 'PAYMENT',
+      link: `/admin/orders/${order.id}`,
+    });
+  }
+
   emitOrderUpdate(updated, 'CANCELLED');
 
   return updated;
 };
 
-/** Starts the gateway payment for a pending order (idempotent per order). */
+/** Starts or retries the gateway payment for a pending order. */
 export const startPayment = async ({ order, provider }) => {
-  const result = await createPayment({ provider, order, amount: order.total });
+  const settings = await getStoreSettings();
+  const result = await createPayment({ provider, order, amount: order.total, storeName: settings.storeName });
 
-  if (result.reference) {
-    await prisma.payment.update({
-      where: { orderId: order.id },
-      data: { paymentId: result.reference, provider },
-    });
-  }
+  await prisma.payment.update({
+    where: { orderId: order.id },
+    data: {
+      provider,
+      status: 'PENDING',
+      currency: env.currency,
+      paymentId: result.reference ?? null,
+      gatewayOrderId: result.gatewayOrderId ?? null,
+      failureCode: null,
+    },
+  });
 
   return result;
 };

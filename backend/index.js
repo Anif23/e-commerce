@@ -13,7 +13,7 @@ const server = http.createServer(app);
 initSocket(server);
 startOrderExpiryJob();
 
-server.listen(env.port, () => {
+server.listen(env.port, '0.0.0.0', () => {
   // eslint-disable-next-line no-console
   console.log(`API listening on http://localhost:${env.port} (${env.nodeEnv})`);
 });

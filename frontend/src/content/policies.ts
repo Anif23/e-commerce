@@ -2,7 +2,7 @@
  * Store policies live in one typed file so legal copy can be edited without
  * touching components, and so every page can share the same renderer.
  *
- * Indian context: prices are in INR (₹), tax is GST, and the copy follows the
+ * Indian context: prices are in INR (₹), tax is itemized at checkout, and the copy follows the
  * Digital Personal Data Protection Act, 2023 and the Consumer Protection
  * (E-Commerce) Rules, 2020.
  */
@@ -35,7 +35,7 @@ export const POLICIES: Policy[] = [
   {
     slug: 'privacy',
     title: 'Privacy Policy',
-    audience: 'How Asnif Store collects, uses and protects your data',
+    audience: 'How {{storeName}} collects, uses and protects your data',
     summary:
       'We collect only what we need to take your order, deliver it and support you afterwards. We never sell your personal data.',
     sections: [
@@ -44,7 +44,7 @@ export const POLICIES: Policy[] = [
         heading: '1. Who we are',
         blocks: [
           text(
-            'Asnif Store ("we", "us", "our") is an online retail store operated from Thoothukudi, Tamil Nadu, India. This policy explains what personal information we collect when you browse or buy from this website, why we collect it, and the choices you have.',
+            '{{storeName}} ("we", "us", "our") is an online retail store operated from {{businessAddress}}. This policy explains what personal information we collect when you browse or buy from this website, why we collect it, and the choices you have.',
           ),
           text(
             'By using this website you consent to the practices described here. If you do not agree, please do not use the site or share your details with us.',
@@ -58,7 +58,7 @@ export const POLICIES: Policy[] = [
           list([
             'Identity and contact details: name, email address, phone number and delivery addresses.',
             'Order information: items purchased, size or colour variants chosen, coupons applied, order notes and the delivery status of each order.',
-            'Payment information: card or UPI details are collected and processed by our payment partners (Razorpay-style gateways, Stripe or PayPal). We never store your full card number, CVV or UPI PIN — we only keep the transaction reference, the amount and the result.',
+            'Payment information: card or UPI details are collected and processed by our configured payment partners (Razorpay and/or Stripe). We never store your full card number, CVV or UPI PIN — we only keep the transaction reference, the amount and the result.',
             'Account information: a securely hashed password, wishlist entries, reviews you write and support tickets you raise.',
             'Technical information: IP address, browser and device type, pages visited and cookie identifiers (see our Cookie Policy).',
           ]),
@@ -69,7 +69,7 @@ export const POLICIES: Policy[] = [
         heading: '3. How we use your information',
         blocks: [
           list([
-            'To accept, pack, ship and deliver your order, and to issue GST invoices.',
+            'To accept, pack, ship and deliver your order, and to provide order and tax records where required.',
             'To process payments, apply coupons and issue refunds.',
             'To send service messages: order confirmation, dispatch, delivery and support replies. These are not marketing messages and cannot be switched off while an order is open.',
             'To send offers and announcements only when you have opted in; you can unsubscribe from any marketing email or turn off marketing cookies at any time.',
@@ -101,10 +101,10 @@ export const POLICIES: Policy[] = [
           table(
             ['Partner', 'Why they receive data'],
             [
-              ['Payment gateways (Stripe, PayPal)', 'To authorise and settle your payment and to prevent fraud.'],
+              ['Configured payment gateways', 'To authorise and settle your payment and to prevent fraud.'],
               ['Courier partners', 'Name, address, phone number and order contents — only to deliver your parcel.'],
               ['Email / notification provider', 'To send order and service messages.'],
-              ['Government and tax authorities', 'When required by law, for example GST filings.'],
+              ['Government and tax authorities', 'When required by law, for applicable tax filings.'],
             ],
           ),
           text(
@@ -117,7 +117,7 @@ export const POLICIES: Policy[] = [
         heading: '6. How long we keep data',
         blocks: [
           list([
-            'Orders and invoices: 8 years, as required for GST and other tax records.',
+            'Orders and invoices: 8 years, as required by applicable tax and consumer-record laws.',
             'Account profile and addresses: until you delete them or close your account.',
             'Support tickets: 3 years from the last message, so we can handle repeat issues and disputes.',
             'Server and security logs: 90 days.',
@@ -130,7 +130,7 @@ export const POLICIES: Policy[] = [
         heading: '7. Security',
         blocks: [
           text(
-            'Traffic is encrypted with HTTPS. Passwords are stored as salted hashes (bcrypt) and never in plain text. Access to customer data inside Asnif Store is limited to staff who need it to process orders, and every administrative action is recorded in an audit log.',
+            'Traffic is encrypted with HTTPS. Passwords are stored as salted hashes (bcrypt) and never in plain text. Access to customer data inside {{storeName}} is limited to staff who need it to process orders, and every administrative action is recorded in an audit log.',
           ),
           text(
             'If a data breach affecting your information occurs, we will notify you and the relevant authority as required by law.',
@@ -190,7 +190,7 @@ export const POLICIES: Policy[] = [
           list([
             'Unused, unwashed and undamaged, with all tags, manuals, accessories and free gifts included.',
             'Packed in the original box so it survives the return journey.',
-            'Accompanied by the original GST invoice.',
+            'Accompanied by the order number and proof of purchase.',
           ]),
           text(
             'If an item comes back used, damaged or incomplete we may decline the refund and send it back to you at your cost.',
@@ -231,7 +231,7 @@ export const POLICIES: Policy[] = [
             [
               ['UPI / card / net banking / wallet', '5–7 working days after approval', 'The original payment instrument'],
               ['Cash on Delivery (COD)', '5–7 working days after we receive bank details', 'Your bank account or UPI ID'],
-              ['Store credit or coupon', 'Immediately', 'Your Asnif Store account'],
+              ['Store credit or coupon', 'Immediately', 'Your {{storeName}} account'],
             ],
           ),
           text(
@@ -268,7 +268,7 @@ export const POLICIES: Policy[] = [
     title: 'Shipping & Delivery Policy',
     audience: 'Dispatch times, delivery charges and serviceable PIN codes',
     summary:
-      'Orders are dispatched within 24–48 hours. Standard delivery takes 3–7 working days and is free on orders over ₹999.',
+      'Orders are dispatched within 24–48 hours. Standard delivery takes 3–7 working days and is free on orders over {{freeShippingThreshold}}.',
     sections: [
       {
         id: 'dispatch',
@@ -295,12 +295,12 @@ export const POLICIES: Policy[] = [
           table(
             ['Order value', 'Standard shipping'],
             [
-              ['Below ₹999', '₹49'],
-              ['₹999 and above', 'Free'],
-              ['Cash on Delivery (available on select PIN codes)', '₹49, free above ₹999'],
+              ['Below {{freeShippingThreshold}}', '{{shippingFee}}'],
+              ['{{freeShippingThreshold}} and above', 'Free'],
+              ['Cash on Delivery', '{{shippingFee}}, free above {{freeShippingThreshold}}'],
             ],
           ),
-          text('Shipping charges, if any, are shown on the checkout summary before you pay and on your GST invoice.'),
+          text('Shipping charges, if any, are shown on the checkout summary before you pay and in your order summary.'),
         ],
       },
       {
@@ -308,7 +308,7 @@ export const POLICIES: Policy[] = [
         heading: '3. Serviceable PIN codes',
         blocks: [
           text(
-            'We deliver to most serviceable PIN codes across India. Enter your PIN code at checkout to confirm serviceability and to see Cash on Delivery availability. If a PIN code is not serviceable by our partners, we will cancel the order and refund it in full.',
+            'Enter a complete delivery address, including its PIN code, at checkout. Courier serviceability is confirmed after the order is placed; if a carrier cannot deliver to the address, we will contact you to update or cancel the order and arrange any applicable refund.',
           ),
         ],
       },
@@ -343,10 +343,10 @@ export const POLICIES: Policy[] = [
       },
       {
         id: 'taxes',
-        heading: '7. Invoices and GST',
+        heading: '7. Taxes and order records',
         blocks: [
           text(
-            'Every order ships with a GST invoice. Prices displayed on the site are inclusive of GST unless stated otherwise; the tax breakup is printed on the invoice. For inter-state shipments IGST applies, and for intra-state shipments CGST and SGST apply.',
+            'Applicable tax is calculated using the store rate and shown as a separate line in the checkout summary before payment. Product prices are displayed before this tax is added. The order record includes the amount collected; the seller remains responsible for issuing any statutory tax invoice required by law.',
           ),
         ],
       },
@@ -358,7 +358,7 @@ export const POLICIES: Policy[] = [
     title: 'Terms & Conditions',
     audience: 'The rules for using this website and placing orders',
     summary:
-      'These terms govern your use of Asnif Store and any order you place with us. Please read them before you buy.',
+      'These terms govern your use of {{storeName}} and any order you place with us. Please read them before you buy.',
     sections: [
       {
         id: 'acceptance',
@@ -386,7 +386,7 @@ export const POLICIES: Policy[] = [
         heading: '3. Products, pricing and availability',
         blocks: [
           text(
-            'All prices are shown in Indian rupees (₹) and are inclusive of GST unless stated otherwise. We try to describe and photograph products accurately, but slight variations in colour may occur because of screen settings.',
+            'All prices are shown in Indian rupees (₹). Applicable tax is calculated using the configured store rate and itemized separately in the checkout summary. We try to describe and photograph products accurately, but slight variations in colour may occur because of screen settings.',
           ),
           list([
             'Prices, offers and stock can change without notice; the price charged is the one shown when you place the order.',
@@ -412,7 +412,7 @@ export const POLICIES: Policy[] = [
         heading: '5. Payment',
         blocks: [
           text(
-            'We accept UPI, cards, net banking and wallets through our payment partners, PayPal and Stripe for international cards, and Cash on Delivery on select PIN codes. You confirm that the payment method you use belongs to you and that the details you provide are correct.',
+            'When configured, we accept payments through Razorpay and Stripe, alongside Cash on Delivery where available. You confirm that the payment method you use belongs to you and that the details you provide are correct.',
           ),
         ],
       },
@@ -433,7 +433,7 @@ export const POLICIES: Policy[] = [
         heading: '7. Intellectual property',
         blocks: [
           text(
-            'The website design, code, text, logos, product photography and other content are owned by Asnif Store or its licensors and are protected by Indian copyright and trademark law. You may use the site for personal, non-commercial shopping only.',
+            'The website design, code, text, logos, product photography and other content are owned by {{storeName}} or its licensors and are protected by Indian copyright and trademark law. You may use the site for personal, non-commercial shopping only.',
           ),
         ],
       },
@@ -442,7 +442,7 @@ export const POLICIES: Policy[] = [
         heading: '8. Limitation of liability',
         blocks: [
           text(
-            'To the extent permitted by law, Asnif Store is not liable for indirect or consequential losses, loss of profit or data, or delays caused by events outside our reasonable control (natural disasters, courier strikes, government action, internet outages). Our total liability for any claim relating to an order is limited to the value of that order.',
+            'To the extent permitted by law, {{storeName}} is not liable for indirect or consequential losses, loss of profit or data, or delays caused by events outside our reasonable control (natural disasters, courier strikes, government action, internet outages). Our total liability for any claim relating to an order is limited to the value of that order.',
           ),
           text('Nothing in these terms limits rights you have under the Consumer Protection Act, 2019.'),
         ],
@@ -452,7 +452,7 @@ export const POLICIES: Policy[] = [
         heading: '9. Governing law and jurisdiction',
         blocks: [
           text(
-            'These terms are governed by the laws of India. Disputes are subject to the exclusive jurisdiction of the courts in Thoothukudi, Tamil Nadu, without prejudice to any statutory remedy available to you as a consumer.',
+            'These terms are governed by the laws of India. Disputes are subject to the jurisdiction of the courts that may lawfully hear matters relating to our business address at {{businessAddress}}, without prejudice to any statutory remedy available to you as a consumer.',
           ),
         ],
       },
@@ -504,7 +504,7 @@ export const POLICIES: Policy[] = [
         heading: '3. Third-party cookies',
         blocks: [
           text(
-            'Our payment partners (Stripe and PayPal) set their own cookies and scripts when you choose to pay with them — these are required to process the payment securely and to prevent fraud. Embedded maps or video players may set their own cookies too; we do not control them.',
+            'Our configured payment partners (Razorpay and Stripe) set their own cookies and scripts when you choose to pay with them — these are required to process the payment securely and to prevent fraud. Embedded maps or video players may set their own cookies too; we do not control them.',
           ),
         ],
       },

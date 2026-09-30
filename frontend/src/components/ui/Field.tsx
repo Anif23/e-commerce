@@ -3,7 +3,7 @@ import { forwardRef, useId, type InputHTMLAttributes, type ReactNode, type Selec
 import { cn } from '../../lib/cn';
 
 const control =
-  'w-full rounded-xl border border-ink-300 bg-white px-3.5 py-2.5 text-sm text-ink-900 transition-colors ' +
+  'relative z-0 block w-full min-w-0 cursor-text select-text rounded-xl border border-ink-300 bg-white px-3.5 py-2.5 text-sm text-ink-900 transition-colors ' +
   'placeholder:text-ink-400 hover:border-ink-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 ' +
   'disabled:bg-ink-100 disabled:text-ink-500';
 

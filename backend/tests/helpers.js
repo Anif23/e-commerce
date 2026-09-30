@@ -111,7 +111,7 @@ export const seedCatalog = async () => {
 /**
  * Walks the happy path up to (but not including) payment confirmation.
  */
-export const createOrder = async ({ token, productId, variantId = null, quantity = 1, provider = 'MOCK' }) => {
+export const createOrder = async ({ token, productId, variantId = null, quantity = 1, provider = 'COD' }) => {
   // When no product is given we check out whatever is already in the cart.
   if (productId) {
     await request(app)

@@ -1,28 +1,26 @@
 import Stripe from 'stripe';
-import { env } from '../../config/env.js';
 
-/**
- * Stripe Payment Intents implementation.
- * The browser confirms the intent with the returned client secret; this module
- * only creates intents and verifies their final state server side.
- */
+import { env } from '../../config/env.js';
+import { ApiError } from '../../lib/errors.js';
 
 let client = null;
 
 const getClient = () => {
-  if (!isConfigured()) return null;
+  if (!env.payments.stripeSecretKey) return null;
   if (!client) client = new Stripe(env.payments.stripeSecretKey);
   return client;
 };
 
-export const isConfigured = () => Boolean(env.payments.stripeSecretKey);
+export const isConfigured = () => Boolean(env.payments.stripeSecretKey && env.payments.stripePublishableKey);
+const toMinorUnits = (amount) => Math.round(Number(amount) * 100);
 
+/** Create a PaymentIntent; the browser confirms it using Stripe.js. */
 export async function create({ order, amount }) {
   const stripe = getClient();
-  if (!stripe) throw new Error('Stripe is not configured');
+  if (!stripe || !isConfigured()) throw new Error('Stripe is not configured');
 
   const intent = await stripe.paymentIntents.create({
-    amount: Math.round(Number(amount) * 100),
+    amount: toMinorUnits(amount),
     currency: env.currency.toLowerCase(),
     automatic_payment_methods: { enabled: true },
     metadata: { orderId: String(order.id) },
@@ -32,30 +30,59 @@ export async function create({ order, amount }) {
   return {
     reference: intent.id,
     status: 'PENDING',
-    payload: { clientSecret: intent.client_secret, paymentIntentId: intent.id },
+    payload: {
+      clientSecret: intent.client_secret,
+      paymentIntentId: intent.id,
+      publishableKey: env.payments.stripePublishableKey,
+    },
   };
 }
 
-export async function confirm({ payment, payload }) {
+export async function confirm({ payment, payload, order, amount }) {
   const stripe = getClient();
-  if (!stripe) throw new Error('Stripe is not configured');
+  if (!stripe || !isConfigured()) throw new Error('Stripe is not configured');
 
-  const reference = payload.paymentIntentId ?? payment.paymentId;
-  if (!reference) return { status: 'FAILED', failureCode: 'MISSING_INTENT' };
-
-  const intent = await stripe.paymentIntents.retrieve(reference);
-
-  if (intent.status === 'succeeded') {
-    return { status: 'SUCCESS', reference: intent.id, payerEmail: intent.receipt_email ?? null };
+  const reference = String(payload.paymentIntentId ?? payment.paymentId ?? '');
+  if (!reference || (payment.paymentId && reference !== payment.paymentId)) {
+    return { status: 'FAILED', failureCode: 'INTENT_MISMATCH' };
   }
 
-  return { status: intent.status === 'processing' ? 'PENDING' : 'FAILED', reference: intent.id, failureCode: intent.status };
+  const intent = await stripe.paymentIntents.retrieve(reference, { expand: ['latest_charge'] });
+  if (intent.metadata?.orderId !== String(order.id)) {
+    return { status: 'FAILED', reference: intent.id, failureCode: 'ORDER_MISMATCH' };
+  }
+
+  const amountMatches = Number(intent.amount_received || intent.amount) === toMinorUnits(amount);
+  const currencyMatches = String(intent.currency).toUpperCase() === env.currency;
+  if (!amountMatches || !currencyMatches) {
+    return { status: 'FAILED', reference: intent.id, failureCode: 'AMOUNT_OR_CURRENCY_MISMATCH' };
+  }
+
+  if (intent.status === 'succeeded') {
+    const charge = typeof intent.latest_charge === 'object' ? intent.latest_charge : null;
+    return {
+      status: 'SUCCESS',
+      reference: intent.id,
+      payerEmail: charge?.billing_details?.email ?? null,
+      method: intent.payment_method_types?.[0] ?? null,
+    };
+  }
+
+  return {
+    status: intent.status === 'processing' ? 'PENDING' : 'FAILED',
+    reference: intent.id,
+    failureCode: intent.status,
+  };
 }
 
-/** Verifies the signature of a Stripe webhook (used by POST /api/payments/stripe/webhook). */
+/** Verifies a Stripe webhook using the exact raw request bytes. */
 export const constructWebhookEvent = (rawBody, signature) => {
   const stripe = getClient();
   if (!stripe || !env.payments.stripeWebhookSecret) return null;
 
-  return stripe.webhooks.constructEvent(rawBody, signature, env.payments.stripeWebhookSecret);
+  try {
+    return stripe.webhooks.constructEvent(rawBody, signature, env.payments.stripeWebhookSecret);
+  } catch {
+    throw ApiError.badRequest('Invalid Stripe webhook signature');
+  }
 };

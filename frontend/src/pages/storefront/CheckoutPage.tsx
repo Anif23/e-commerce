@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Check, CreditCard, MapPin, ShoppingBag, TestTube, Truck, Wallet } from 'lucide-react';
+import { Check, CreditCard, MapPin, ShoppingBag, Truck, Wallet } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
 import { assetUrl } from '../../lib/assets';
@@ -15,7 +15,7 @@ import { PaymentPanel, type PaymentSession } from '../../components/checkout/Pay
 import { useCheckout, useCheckoutSummary, useConfirmPayment } from '../../hooks/queries/useOrders';
 import { cartApi } from '../../lib/api/endpoints';
 import { FREE_SHIPPING_THRESHOLD } from '../../lib/store';
-import type { Address, PaymentProvider } from '../../types/api';
+import type { Address, CheckoutPaymentProvider } from '../../types/api';
 
 const STEPS = [
   { id: 1, label: 'Shipping' },
@@ -23,18 +23,16 @@ const STEPS = [
   { id: 3, label: 'Review' },
 ];
 
-const METHOD_ICONS: Record<PaymentProvider, typeof Truck> = {
+const METHOD_ICONS: Record<CheckoutPaymentProvider, typeof Truck> = {
   COD: Truck,
-  PAYPAL: Wallet,
+  RAZORPAY: Wallet,
   STRIPE: CreditCard,
-  MOCK: TestTube,
 };
 
-const METHOD_NOTES: Record<PaymentProvider, string> = {
+const METHOD_NOTES: Record<CheckoutPaymentProvider, string> = {
   COD: 'Pay the courier when your parcel arrives.',
-  PAYPAL: 'You will confirm the payment in the PayPal window.',
-  STRIPE: 'Card details are handled by Stripe and never touch our servers.',
-  MOCK: 'Simulated gateway for testing — no real money moves.',
+  RAZORPAY: 'Pay securely using cards, UPI, or net banking.',
+  STRIPE: 'Card details are handled securely by Stripe and never touch our servers.',
 };
 
 export const CheckoutPage = () => {
@@ -47,7 +45,7 @@ export const CheckoutPage = () => {
   const [addressMode, setAddressMode] = useState<'saved' | 'new'>('saved');
   const [addressId, setAddressId] = useState<number | null>(null);
   const [draft, setDraft] = useState<AddressDraft | null>(null);
-  const [method, setMethod] = useState<PaymentProvider>('COD');
+  const [method, setMethod] = useState<CheckoutPaymentProvider>('COD');
   const [note, setNote] = useState('');
   const [pending, setPending] = useState<{ orderId: number; payment: PaymentSession | null } | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -145,17 +143,16 @@ export const CheckoutPage = () => {
         customerNote: note.trim() || undefined,
       });
 
-      const { order, payment } = response.data.data;
-      const provider = payment.provider as PaymentProvider;
+      const { order, payment, paymentStartFailed: paymentSetupFailed } = response.data.data;
+      const provider = payment.provider as CheckoutPaymentProvider;
 
       if (provider === 'COD') {
         navigate(`/orders/${order.id}?placed=1`, { replace: true });
         return;
       }
 
-      if (provider === 'MOCK') {
-        await confirmPayment.mutateAsync({ orderId: order.id });
-        navigate(`/orders/${order.id}?placed=1`, { replace: true });
+      if (paymentSetupFailed) {
+        navigate(`/orders/${order.id}?payment=retry`, { replace: true });
         return;
       }
 
@@ -406,16 +403,27 @@ export const CheckoutPage = () => {
                   <p className="mt-1 text-xs text-ink-500">
                     Your order is reserved while the payment is confirmed.
                   </p>
+                  {errorMessage && (
+                    <p role="alert" className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm text-danger">{errorMessage}</p>
+                  )}
 
                   <div className="mt-4">
                     <PaymentPanel
                       provider={method}
                       payment={pending.payment}
                       onConfirm={async (payload) => {
-                        await confirmPayment.mutateAsync({ orderId: pending.orderId, payload });
+                        const result = await confirmPayment.mutateAsync({ orderId: pending.orderId, payload });
+                        if (result.data.data.paymentLate) {
+                          navigate(`/orders/${pending.orderId}?payment=late`, { replace: true });
+                          return;
+                        }
+                        if (result.data.data.paymentPending) {
+                          navigate(`/orders/${pending.orderId}?payment=processing`, { replace: true });
+                          return;
+                        }
                         navigate(`/orders/${pending.orderId}?placed=1`, { replace: true });
                       }}
-                      onCancel={() => setPending(null)}
+                      onCancel={() => setErrorMessage('Payment window closed. Your order is still awaiting payment; you can reopen the secure payment window above.')}
                     />
                   </div>
                 </div>
@@ -452,7 +460,7 @@ export const CheckoutPage = () => {
                     <Link to="/policies/refund" className="underline underline-offset-2 hover:text-brand-700">
                       Refund &amp; Returns Policy
                     </Link>
-                    . Prices are in Indian rupees and include GST; a GST invoice is sent with every dispatch.
+                    . Prices are in Indian rupees; {data?.shipping.taxName ?? 'Tax'} is itemized at checkout and shown on your invoice.
                   </p>
                 </>
               )}
@@ -503,7 +511,7 @@ export const CheckoutPage = () => {
                 </dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-ink-500">Tax</dt>
+                <dt className="text-ink-500">{data?.shipping.taxName ?? totals.taxName ?? 'Tax'} ({data?.shipping.taxRatePercent ?? totals.taxRatePercent ?? 0}%)</dt>
                 <dd className="font-medium text-ink-900">{formatPrice(totals.tax)}</dd>
               </div>
               <div className="flex justify-between border-t border-ink-100 pt-3 text-base">
@@ -514,8 +522,8 @@ export const CheckoutPage = () => {
 
             <p className="mt-4 text-xs text-ink-400">
               Free shipping on orders over{' '}
-              {formatPrice(data?.shipping.freeShippingThreshold ?? FREE_SHIPPING_THRESHOLD)}. Orders are held for
-              30 minutes while a payment is confirmed.
+              {formatPrice(data?.shipping.freeShippingThreshold ?? FREE_SHIPPING_THRESHOLD)}. Orders are held for{' '}
+              {data?.shipping.paymentWindowMinutes ?? 15} minutes while a payment is confirmed.
             </p>
           </div>
         </aside>

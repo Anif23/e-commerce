@@ -4,7 +4,7 @@ import { getMeta, getPagination, resolveSort } from '../../lib/query.js';
 import { cardInclude, productWhere, toProductCard, toProductDetail, wishlistInclude } from './catalog.service.js';
 import { createAdminNotification } from '../../services/notifications.js';
 import { adjustStock } from '../../services/inventory.js';
-import { deleteFiles, fileUrl } from '../../middleware/upload.js';
+import { deleteFiles, deleteStoredFiles, fileUrl } from '../../middleware/upload.js';
 import { variantLabel } from '../../lib/money.js';
 
 const slugify = (value) =>
@@ -288,7 +288,9 @@ export const productsController = {
       throw ApiError.conflict('A product with this name already exists');
     }
 
-    const product = await prisma.product.create({
+    let product;
+    try {
+      product = await prisma.product.create({
       data: {
         name: body.name.trim(),
         slug,
@@ -309,7 +311,11 @@ export const productsController = {
         images: req.files?.length ? { create: req.files.map((file) => ({ url: fileUrl(file) })) } : undefined,
       },
       include: cardInclude,
-    });
+      });
+    } catch (error) {
+      await deleteFiles(req.files);
+      throw error;
+    }
 
     res.status(201).json({ success: true, message: 'Product created', data: toProductCard(product) });
   }),
@@ -326,7 +332,12 @@ export const productsController = {
 
     if (body.deleteImages) {
       const ids = (Array.isArray(body.deleteImages) ? body.deleteImages : [body.deleteImages]).map(Number);
-      await prisma.productImage.deleteMany({ where: { id: { in: ids } } });
+      const removedImages = await prisma.productImage.findMany({
+        where: { productId: id, id: { in: ids } },
+        select: { url: true },
+      });
+      await prisma.productImage.deleteMany({ where: { productId: id, id: { in: ids } } });
+      await deleteStoredFiles(removedImages.map((image) => image.url));
     }
 
     const slug = body.name && body.name !== product.name ? slugify(body.name) : undefined;
@@ -339,7 +350,9 @@ export const productsController = {
       }
     }
 
-    const updated = await prisma.product.update({
+    let updated;
+    try {
+      updated = await prisma.product.update({
       where: { id },
       data: {
         ...(body.name !== undefined && { name: body.name.trim() }),
@@ -369,7 +382,11 @@ export const productsController = {
         ...(req.files?.length && { images: { create: req.files.map((file) => ({ url: fileUrl(file) })) } }),
       },
       include: cardInclude,
-    });
+      });
+    } catch (error) {
+      await deleteFiles(req.files);
+      throw error;
+    }
 
     res.json({ success: true, message: 'Product updated', data: toProductCard(updated) });
   }),

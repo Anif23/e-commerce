@@ -1,38 +1,20 @@
-import { env } from '../../config/env.js';
 import { ApiError } from '../../lib/errors.js';
-import * as paypalProvider from './paypal.js';
+import * as razorpayProvider from './razorpay.js';
 import * as stripeProvider from './stripe.js';
-import * as mockProvider from './mock.js';
 
 /**
- * Payment gateway abstraction.
- *
- * Every provider implements the same three functions so checkout never needs to
- * know which gateway it is talking to:
- *   isEnabled()                     -> can this gateway be used right now?
- *   create({ order, amount })       -> start a payment, return a client payload
- *   confirm({ payment, payload })   -> verify + finalise, return a result object
+ * Payment gateway abstraction. Online methods are intentionally hidden until
+ * their real server credentials are configured; no mock/test gateway is exposed.
  */
-
 export const PROVIDERS = {
   COD: { id: 'COD', label: 'Cash on delivery', online: false, provider: null },
-  PAYPAL: { id: 'PAYPAL', label: 'PayPal', online: true, provider: paypalProvider },
+  RAZORPAY: { id: 'RAZORPAY', label: 'Razorpay', online: true, provider: razorpayProvider },
   STRIPE: { id: 'STRIPE', label: 'Card (Stripe)', online: true, provider: stripeProvider },
-  MOCK: { id: 'MOCK', label: 'Test payment', online: true, provider: mockProvider },
 };
 
 export const isProviderAvailable = (id) => {
   const entry = PROVIDERS[id];
-  if (!entry) return false;
-
-  // COD is always available.
-  if (!entry.provider) return true;
-
-  // An explicit PAYMENT_MODE=mock forces the simulator (local dev / tests).
-  if (env.payments.mode === 'mock') return id === 'MOCK';
-  if (env.payments.mode === 'live') return entry.provider.isConfigured() && id !== 'MOCK';
-
-  return entry.provider.isConfigured();
+  return Boolean(entry && (!entry.provider || entry.provider.isConfigured()));
 };
 
 export const listPaymentMethods = () =>
@@ -46,41 +28,30 @@ const assertAvailable = (id) => {
   }
 };
 
-/**
- * Starts a payment for an order.
- * @returns {Promise<{ reference: string|null, status: string, payload: object }>}
- */
-export const createPayment = async ({ provider, order, amount }) => {
+/** @returns {Promise<{reference: string|null, gatewayOrderId?: string|null, status: string, payload: object}>} */
+export const createPayment = async ({ provider, order, amount, storeName }) => {
   assertAvailable(provider);
-
   const entry = PROVIDERS[provider];
 
-  if (!entry.provider) {
-    // Cash on delivery: nothing to do with a gateway.
-    return { reference: null, status: 'PENDING', payload: {} };
-  }
+  if (!entry.provider) return { reference: null, status: 'PENDING', payload: {} };
 
-  const result = await entry.provider.create({ order, amount });
-
+  const result = await entry.provider.create({ order, amount, storeName });
   return {
     reference: result.reference ?? null,
+    gatewayOrderId: result.gatewayOrderId ?? null,
     status: result.status ?? 'PENDING',
     payload: result.payload ?? {},
   };
 };
 
 /**
- * Confirms a payment. Never throws for a declined payment — it returns
- * `{ status: 'FAILED' }` so the caller can keep the order in a pending state.
+ * Confirms a payment with the selected gateway. The caller always supplies the
+ * server-side order and amount; client-provided prices are never trusted.
  */
 export const confirmPayment = async ({ provider, payment, payload = {}, order, amount }) => {
   assertAvailable(provider);
-
   const entry = PROVIDERS[provider];
 
-  if (!entry.provider) {
-    return { status: 'PENDING', reference: null, payerEmail: null };
-  }
-
+  if (!entry.provider) return { status: 'PENDING', reference: null, payerEmail: null };
   return entry.provider.confirm({ payment, payload, order, amount });
 };

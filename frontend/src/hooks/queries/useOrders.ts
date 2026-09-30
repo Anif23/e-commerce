@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { checkoutApi, ordersApi, paymentsApi, type Query } from '../../lib/api/endpoints';
 import { queryKeys } from '../../lib/queryKeys';
 import { getErrorMessage } from '../../lib/api/client';
-import type { Address, ApiList, Order, PaymentProvider } from '../../types/api';
+import type { Address, ApiList, CheckoutPaymentProvider, Order } from '../../types/api';
 
 export const useCheckoutSummary = (enabled = true) =>
   useQuery({
@@ -23,7 +23,7 @@ export const usePaymentMethods = () =>
 
 export interface CheckoutPayload {
   addressId?: number;
-  paymentMethod: PaymentProvider;
+  paymentMethod: CheckoutPaymentProvider;
   customerNote?: string;
   address?: Partial<Address> & { save?: boolean };
 }
@@ -68,6 +68,10 @@ export const useOrders = (params: Query = {}) =>
     queryKey: queryKeys.orders(params),
     queryFn: async () => (await ordersApi.list(params)).data,
     placeholderData: keepPreviousData,
+    refetchInterval: (query) =>
+      query.state.data?.data.some((order) => ['PENDING_PAYMENT', 'PAID', 'PROCESSING', 'SHIPPED'].includes(order.status))
+        ? 30_000
+        : false,
   });
 
 export interface OrderStats {
@@ -87,6 +91,10 @@ export const useOrder = (id?: number) =>
     queryKey: queryKeys.order(id ?? 0),
     queryFn: async () => (await ordersApi.detail(id!)).data.data,
     enabled: Boolean(id),
+    refetchInterval: (query) =>
+      query.state.data && ['PENDING_PAYMENT', 'PAID', 'PROCESSING', 'SHIPPED'].includes(query.state.data.status)
+        ? 30_000
+        : false,
   });
 
 export const useOrderTracking = (id?: number) =>

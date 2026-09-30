@@ -1,17 +1,15 @@
 /**
- * Backend serialisers return absolute URLs for uploaded media
- * (e.g. http://localhost:5000/uploads/shirt.svg) because `APP_URL` is baked in
- * at upload time. Drop the origin so images load through the dev-server proxy
- * and keep working when the API moves to another host.
+ * Uploaded local media can be proxied through the current origin. Third-party
+ * images (such as the seeded Unsplash catalogue photos) must keep their host.
  */
 export const assetUrl = (url?: string | null, fallback = '/placeholder.svg'): string => {
   if (!url) return fallback;
-
   if (url.startsWith('/')) return url;
 
   try {
     const parsed = new URL(url);
-    return parsed.pathname + parsed.search;
+    if (parsed.pathname.startsWith('/uploads/')) return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    return url;
   } catch {
     return url;
   }

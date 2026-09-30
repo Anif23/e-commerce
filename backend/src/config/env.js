@@ -21,7 +21,7 @@ export const env = {
   jwtSecret: process.env.JWT_SECRET ?? 'dev-access-secret-change-me',
   refreshSecret: process.env.REFRESH_SECRET ?? 'dev-refresh-secret-change-me',
   accessTokenTtl: process.env.ACCESS_TOKEN_TTL ?? '15m',
-  refreshTokenTtlDays: toNumber(process.env.REFRESH_TOKEN_TTL_DAYS, 7),
+  refreshTokenTtlDays: toNumber(process.env.REFRESH_TOKEN_TTL_DAYS, 14),
 
   databaseUrl: process.env.DATABASE_URL,
 
@@ -36,17 +36,29 @@ export const env = {
   paymentWindowMinutes: toNumber(process.env.PAYMENT_WINDOW_MINUTES, 15),
 
   payments: {
-    mode: process.env.PAYMENT_MODE ?? 'auto', // auto | live | mock
-    paypalClientId: process.env.PAYPAL_CLIENT_ID,
-    paypalClientSecret: process.env.PAYPAL_CLIENT_SECRET,
-    paypalMode: process.env.PAYPAL_MODE === 'live' ? 'live' : 'sandbox',
     stripeSecretKey: process.env.STRIPE_SECRET_KEY,
+    stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
     stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+    razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+    razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET,
+    razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET,
   },
 
   uploads: {
     dir: process.env.UPLOAD_DIR ?? 'uploads',
     maxImages: toNumber(process.env.MAX_PRODUCT_IMAGES, 6),
+    storage: process.env.UPLOAD_STORAGE === 's3' ? 's3' : 'local',
+    s3: {
+      endpoint: process.env.S3_ENDPOINT || undefined,
+      region: process.env.S3_REGION ?? 'us-east-1',
+      bucket: process.env.S3_BUCKET,
+      accessKeyId: process.env.S3_ACCESS_KEY_ID,
+      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+      sessionToken: process.env.S3_SESSION_TOKEN,
+      forcePathStyle: toBool(process.env.S3_FORCE_PATH_STYLE, false),
+      publicUrl: process.env.S3_PUBLIC_URL?.replace(/\/$/, '') || undefined,
+      keyPrefix: (process.env.S3_KEY_PREFIX ?? 'storefront').replace(/^\/+|\/+$/g, ''),
+    },
   },
 
   seed: {

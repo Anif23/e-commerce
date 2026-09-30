@@ -13,6 +13,8 @@ interface AuthState {
   isAuthenticated: () => boolean;
   isAdmin: () => boolean;
   role: () => Role | null;
+  sessionReady: boolean;
+  finishSessionBootstrap: () => void;
 }
 
 /**
@@ -24,6 +26,7 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       token: null,
       user: null,
+      sessionReady: false,
 
       setSession: (token, user) => set({ token, user }),
       setToken: (token) => set({ token }),
@@ -31,6 +34,7 @@ export const useAuthStore = create<AuthState>()(
       clearSession: () => set({ token: null, user: null }),
 
       isAuthenticated: () => Boolean(get().token),
+      finishSessionBootstrap: () => set({ sessionReady: true }),
       isAdmin: () => get().user?.role === 'ADMIN',
       role: () => get().user?.role ?? null,
     }),

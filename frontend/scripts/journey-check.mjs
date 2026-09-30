@@ -3,7 +3,7 @@
  *
  * It loads `src/lib/api/endpoints.ts` through Vite so every request is the exact
  * one the UI makes, then walks the purchase journey from browse -> cart ->
- * coupon -> checkout -> payment -> tracking -> review -> support, finishing with
+ * coupon -> COD checkout -> tracking -> review -> support, finishing with
  * the admin tools.
  */
 process.env.VITE_API_URL = process.env.VITE_API_URL ?? 'http://127.0.0.1:5000/api';
@@ -18,7 +18,7 @@ const server = await createServer({
 });
 
 const { api } = await server.ssrLoadModule('/src/lib/api/client.ts');
-const { authApi, catalogApi, cartApi, wishlistApi, addressApi, checkoutApi, paymentsApi, ordersApi, reviewsApi, supportApi, notificationsApi, profileApi, couponsApi, adminApi } =
+const { authApi, catalogApi, cartApi, wishlistApi, addressApi, checkoutApi, ordersApi, reviewsApi, supportApi, notificationsApi, profileApi, couponsApi, adminApi } =
   await server.ssrLoadModule('/src/lib/api/endpoints.ts');
 const { useAuthStore } = await server.ssrLoadModule('/src/store/authStore.ts');
 
@@ -141,19 +141,14 @@ await run('checkout summary', async () => {
 });
 
 let orderId = null;
-await run('place order (mock gateway)', async () => {
+await run('place cash-on-delivery order', async () => {
   const { data } = await checkoutApi.place({
     addressId,
-    paymentMethod: 'MOCK',
+    paymentMethod: 'COD',
     customerNote: 'Leave at the door',
   });
   orderId = data.data.order.id;
   return `#${orderId} ${data.data.order.status} (${data.data.payment.provider}/${data.data.payment.status})`;
-});
-
-await run('confirm payment', async () => {
-  const { data } = await paymentsApi.confirm(orderId, {});
-  return `${data.message} → ${data.data.order.status}, payment ${data.data.order.payment.status}`;
 });
 
 await run('payment methods', async () => {

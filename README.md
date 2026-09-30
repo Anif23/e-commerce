@@ -1,10 +1,8 @@
 # 🛍️ Asnif Store — Full-Stack E-Commerce Platform
 
-A modern, production-ready online store built with **React + TypeScript**, **Node/Express**, **PostgreSQL** and **Prisma**.
+A production-oriented online store built with **React + TypeScript**, **Node/Express**, **PostgreSQL** and **Prisma**.
 
-Asnif Store is an **India-focused storefront**: every price is in **Indian rupees (₹ / INR)**, tax is **GST**
-(default 18%), shipping is **₹49** and **free above ₹999**, addresses are Indian (state + 6-digit PIN code) and
-payments support **Cash on Delivery**, **PayPal**, **Stripe** and a **mock simulator** for local development.
+Asnif Store is an **India-focused storefront**: prices use **Indian rupees (₹ / INR)**, with tax and shipping defaults editable in the admin console. Payments support **Cash on Delivery**, **Razorpay**, and **Stripe** when real gateway credentials are configured. No simulated or test payment option is exposed at checkout.
 
 It ships with a complete shopping journey — browse/search/filter, product variants, wishlist, cart, coupons,
 checkout, live order tracking, reviews and support tickets — plus an admin console for products, inventory,
@@ -22,8 +20,8 @@ orders, customers, promotions, reports and support.
 | Product page | Variant matrix (size/colour…) with per-variant price, stock and SKU, gallery, discount badge, stock warnings, reviews with rating distribution |
 | Wishlist | Guest wishlist that merges into the account on sign-in |
 | Cart | Variant-aware lines, quantity stepper, stock validation before checkout, coupon codes, free-shipping nudge |
-| Checkout | Saved address book or one-off address, customer note, method picker (COD / PayPal / Stripe / mock), live totals with GST and shipping |
-| Orders | Order history, filters, detail page with GST invoice-style totals, **order tracking timeline** (Placed → Paid → Processing → Shipped → Delivered), cancellation |
+| Checkout | Saved address book or one-off address, customer note, method picker (COD / Razorpay / Stripe when configured), live totals with admin-managed tax and shipping |
+| Orders | Order history, filters, detail page with tax and payment totals, **order tracking timeline** (Placed → Paid → Processing → Shipped → Delivered), cancellation |
 | Reviews | Write/edit a review only after purchase, helpful flags, admin moderation |
 | Support | Raise tickets against an order, threaded replies, FAQ |
 | Account | Profile, addresses, notifications (real-time), reviews |
@@ -33,7 +31,7 @@ orders, customers, promotions, reports and support.
 
 Dashboard KPIs and revenue chart · product CRUD with **variants, options, images and stock logs** ·
 categories · inventory report (valuation, low stock, out of stock) · order management with the full status
-machine and tracking numbers · customers · coupons and announcements · review moderation · support inbox ·
+machine and tracking numbers · customers · coupons and announcements · review moderation · support inbox · store branding, support, tax and shipping settings ·
 30/90-day reports (revenue, top products, categories, customers).
 
 ### Platform & engineering
@@ -53,7 +51,7 @@ machine and tracking numbers · customers · coupons and announcements · review
 ## 🧱 Tech stack
 
 **Frontend** — React 19, TypeScript (strict), Vite, Tailwind CSS v4, TanStack Query, React Router,
-Axios, React Hot Toast, Recharts (lazy), lucide-react, Socket.IO client, Stripe.js + PayPal SDK (optional).
+Axios, React Hot Toast, Recharts (lazy), lucide-react, Socket.IO client, Stripe.js + Razorpay Checkout (loaded on demand).
 
 **Backend** — Node 22, Express 5, Prisma 6 (PostgreSQL, `pg` driver adapter), Zod validation, JWT access +
 rotating refresh cookies, bcrypt, Socket.IO, Multer uploads, Vitest + Supertest.
@@ -75,7 +73,7 @@ e-commerce/
 │   │   ├── lib/                   # prisma client, errors, async handler, pagination…
 │   │   ├── middleware/            # auth, guards, uploads, rate limits
 │   │   ├── modules/<feature>/     # routes → controller → service, one folder per feature
-│   │   ├── services/              # pricing engine, notifications, payments (paypal/stripe/mock)
+│   │   ├── services/              # pricing engine, notifications, payments (Razorpay/Stripe)
 │   │   └── jobs/                  # unpaid-order expiry sweeper
 │   └── tests/                     # vitest suites (49 tests)
 ├── frontend/
@@ -122,7 +120,7 @@ npm run seed                  # demo catalogue, accounts, coupons, sample orders
 npm run dev                   # http://localhost:5000/api
 ```
 
-`npm run seed` writes generated artwork into `backend/uploads`, so the demo looks right offline.
+`npm run seed` uses curated Unsplash product and category photography. Internet access is required to load those remote seed images.
 
 ### 3. Frontend
 
@@ -152,15 +150,13 @@ Coupons to try: `WELCOME10` (10% off, min ₹1,999), `SAVE20` (₹1,500 off orde
 
 | Method | Availability |
 | --- | --- |
-| **COD** — Cash on Delivery | always |
-| **MOCK** — simulator | always (used by tests and local demos) |
-| **PayPal** | when `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET` are set |
-| **Stripe** | when `STRIPE_SECRET_KEY` is set (and `VITE_STRIPE_PUBLIC_KEY` on the web) |
+| **Cash on Delivery** | Always available |
+| **Razorpay** | Enabled when `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` are configured |
+| **Stripe** | Enabled when `STRIPE_SECRET_KEY` and `STRIPE_PUBLISHABLE_KEY` are configured |
 
-`PAYMENT_MODE=auto` uses a real gateway when keys exist and falls back to the simulator otherwise — that is
-why a fresh clone works with zero keys. The store currency is configured with `STORE_CURRENCY=INR`
-(`VITE_PAYPAL_CURRENCY` must match) and every amount is formatted `en-IN` in one place
-(`frontend/src/lib/format.ts`).
+The checkout only lists configured real payment gateways; it does not fall back to simulated payments. Online payments are verified server-side before stock is reserved. Configure webhook signing secrets in the gateway dashboards and point them to `/api/payments/razorpay/webhook` and `/api/payments/stripe/webhook`. `PAYMENT_WINDOW_MINUTES` controls the lifetime of an unpaid order. Keep all secret keys in the backend environment only; the API returns only the public checkout keys needed by the browser.
+
+The store currency is controlled by `STORE_CURRENCY` (default `INR`). Tax name/rate and shipping fee/free-shipping threshold can be changed under **Admin → Store settings**; each order keeps a snapshot of its tax label and rate.
 
 ---
 
@@ -240,8 +236,8 @@ Storefront and admin screenshots are in `screenshots/`.
 1. `cd backend && npm ci && npx prisma generate && npm run prisma:deploy`
 2. `cd frontend && npm ci && npm run build` → serve `frontend/dist` (Nginx, Netlify, Vercel, S3…).
 3. Set production env values: `DATABASE_URL`, `JWT_SECRET`, `REFRESH_SECRET`, `APP_URL`, `FRONTEND_URL`,
-   `STORE_CURRENCY=INR`, gateway keys. Serve the API behind HTTPS and point `VITE_API_URL` at it.
-4. Uploads are written to `backend/uploads`; mount a volume (or swap in S3) so images survive restarts.
+   `STORE_CURRENCY=INR`, gateway credentials and webhook secrets. Serve the API behind HTTPS and point `VITE_API_URL` at it.
+4. Uploads default to `backend/uploads`; mount a persistent volume or set `UPLOAD_STORAGE=s3` and configure the S3-compatible values in `backend/.env` for S3, R2, or MinIO. Set `S3_PUBLIC_URL` to a public bucket/CDN URL so storefront images can load.
 
 ---
 
@@ -253,12 +249,10 @@ Key `backend/.env` values (see `backend/.env.example` for the full list):
 | --- | --- | --- |
 | `DATABASE_URL` | — | Postgres connection string |
 | `JWT_SECRET` / `REFRESH_SECRET` | dev values | access + refresh token secrets (**change in production**) |
-| `PAYMENT_MODE` | `auto` | `auto` \| `live` \| `mock` |
 | `PAYMENT_WINDOW_MINUTES` | `15` | how long an unpaid online order is held |
 | `STORE_CURRENCY` | `INR` | currency sent to the gateways |
 | `DEFAULT_SHIPPING_FEE` | `49` | shipping in rupees |
 | `FREE_SHIPPING_THRESHOLD` | `999` | free-shipping minimum in rupees |
-| `TAX_RATE_PERCENT` | `18` | GST percentage |
+| `TAX_RATE_PERCENT` | `18` | Default tax percentage before admin settings are saved |
 
-Frontend (`frontend/.env`, see `.env.example`): `VITE_API_URL` (default `/api`), `VITE_PAYPAL_CLIENT_ID`,
-`VITE_PAYPAL_CURRENCY`, `VITE_STRIPE_PUBLIC_KEY`, `VITE_ANALYTICS_ID`, `VITE_PROXY_TARGET`.
+Frontend (`frontend/.env`, see `.env.example`): `VITE_API_URL` (default `/api`), `VITE_ANALYTICS_ID`, and `VITE_PROXY_TARGET`. Gateway public keys are returned by the API when their server-side credentials are configured.

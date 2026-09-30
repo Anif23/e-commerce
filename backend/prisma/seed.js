@@ -4,21 +4,15 @@
  *
  *   npm run seed
  *
- * Product artwork is generated as SVG into /uploads so the demo works offline.
+ * Demo products use curated external photography; no images are generated or stored locally.
  */
 import 'dotenv/config';
 
-import fs from 'node:fs';
-import path from 'node:path';
 import bcrypt from 'bcrypt';
 
 import { prisma } from '../src/lib/prisma.js';
 import { env } from '../src/config/env.js';
 import { round2 } from '../src/lib/money.js';
-
-const UPLOAD_DIR = path.resolve(process.cwd(), env.uploads.dir);
-
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const slugify = (value) =>
   String(value)
@@ -26,46 +20,37 @@ const slugify = (value) =>
     .replace(/[^a-z0-9\s-]/g, '')
     .replace(/\s+/g, '-');
 
-const PALETTES = [
-  ['#6366f1', '#a855f7'],
-  ['#0ea5e9', '#22d3ee'],
-  ['#f97316', '#facc15'],
-  ['#10b981', '#84cc16'],
-  ['#f43f5e', '#fb7185'],
-  ['#8b5cf6', '#ec4899'],
-  ['#14b8a6', '#0ea5e9'],
-  ['#64748b', '#334155'],
-];
+const image = (photo, width = 1200) =>
+  `https://images.unsplash.com/${photo}?auto=format&fit=crop&w=${width}&q=85`;
 
-/** Writes a deterministic gradient SVG so every demo product has artwork. */
-const makeImage = (name, index) => {
-  const [from, to] = PALETTES[index % PALETTES.length];
-  const initials = name
-    .split(' ')
-    .slice(0, 2)
-    .map((word) => word[0])
-    .join('')
-    .toUpperCase();
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-label="${name}">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="${from}"/>
-      <stop offset="100%" stop-color="${to}"/>
-    </linearGradient>
-  </defs>
-  <rect width="800" height="800" fill="url(#g)"/>
-  <circle cx="640" cy="160" r="180" fill="rgba(255,255,255,0.14)"/>
-  <circle cx="180" cy="660" r="220" fill="rgba(0,0,0,0.10)"/>
-  <text x="400" y="430" font-family="Inter, Segoe UI, sans-serif" font-size="190" font-weight="700"
-        text-anchor="middle" fill="rgba(255,255,255,0.92)">${initials}</text>
-</svg>`;
-
-  const fileName = `seed-${slugify(name)}-${index + 1}.svg`;
-  fs.writeFileSync(path.join(UPLOAD_DIR, fileName), svg);
-
-  return `${env.appUrl}/uploads/${fileName}`;
+// Seed catalogue photos are real product/lifestyle photography, not generated
+// placeholder art. External photo URLs keep the local seed lightweight.
+const CATEGORY_IMAGES = {
+  audio: image('photo-1505740420928-5e560c06d30e'),
+  wearables: image('photo-1546868871-7041f2a55e12'),
+  home: image('photo-1600210492486-724fe5c67fb0'),
+  accessories: image('photo-1553062407-98eeb64c6a62'),
+  outdoors: image('photo-1478131143081-80f7f84ca84d'),
 };
+
+const PRODUCT_IMAGES = [
+  image('photo-1505740420928-5e560c06d30e'),
+  image('photo-1606220945770-b5b6c2c55bf1'),
+  image('photo-1608043152269-423dbba4e7e1'),
+  image('photo-1523275335684-37898b6baf30'),
+  image('photo-1575311373937-040b8e1fd5b6'),
+  image('photo-1507473885765-e6ed057f782c'),
+  image('photo-1563089145-599997674d42'),
+  image('photo-1514228742587-6b1558fcca3d'),
+  image('photo-1627123424574-724758594e93'),
+  image('photo-1553062407-98eeb64c6a62'),
+  image('photo-1590874103328-eac38a683ce7'),
+  image('photo-1602143407151-7111542de6e8'),
+  image('photo-1504851149312-7a075b496cc7'),
+  image('photo-1551632811-561732d1e306'),
+  image('photo-1495474472287-4d71bcdd2085'),
+  image('photo-1517701604599-bb29b565090c'),
+];
 
 const CATEGORIES = [
   { name: 'Audio', slug: 'audio' },
@@ -324,9 +309,9 @@ async function seed() {
   /* ------------------------------- categories ------------------------------ */
 
   const categories = {};
-  for (const [index, category] of CATEGORIES.entries()) {
+  for (const category of CATEGORIES) {
     categories[category.slug] = await prisma.category.create({
-      data: { name: category.name, slug: category.slug, image: makeImage(category.name, index) },
+      data: { name: category.name, slug: category.slug, image: CATEGORY_IMAGES[category.slug] },
     });
   }
 
@@ -351,7 +336,7 @@ async function seed() {
         categoryId: categories[entry.category].id,
         discountType: entry.compareAt ? 'FIXED' : null,
         discountValue: entry.compareAt ? round2(entry.compareAt - entry.price) : null,
-        images: { create: [{ url: makeImage(entry.name, index) }, { url: makeImage(entry.name, index + 3) }] },
+        images: { create: [{ url: PRODUCT_IMAGES[index] }] },
       },
     });
 
@@ -459,14 +444,14 @@ async function seed() {
     { user: otherCustomers[1], status: 'DELIVERED', days: 17, products: [9], coupon: null },
     { user: otherCustomers[2], status: 'CANCELLED', days: 12, products: [11], coupon: null },
     { user: otherCustomers[3], status: 'DELIVERED', days: 5, products: [2, 15], coupon: 'FREESHIP' },
-    { user: otherCustomers[0], status: 'PAID', days: 1, products: [12], coupon: null },
+    { user: otherCustomers[0], status: 'PROCESSING', days: 1, products: [12], coupon: null },
   ];
 
   const couponRows = await prisma.coupon.findMany();
   const findCoupon = (code) => couponRows.find((coupon) => coupon.code === code) ?? null;
 
   for (const plan of orderPlan) {
-    const items = plan.products.map((productIndex) => ({ product: products[productIndex], quantity: 1 }));
+    const items = plan.products.map((productIndex) => ({ product: products[productIndex], productIndex, quantity: 1 }));
     const subtotal = round2(items.reduce((sum, item) => sum + item.product.price * item.quantity, 0));
     const coupon = plan.coupon ? findCoupon(plan.coupon) : null;
 
@@ -490,6 +475,8 @@ async function seed() {
         discount,
         shipping,
         tax,
+        taxName: 'GST',
+        taxRatePercent: env.taxRatePercent,
         total,
         couponId: coupon?.id ?? null,
         couponCode: coupon?.code ?? null,
@@ -504,7 +491,7 @@ async function seed() {
           create: items.map((item) => ({
             productId: item.product.id,
             name: item.product.name,
-            image: makeImage(item.product.name, item.product.id),
+            image: PRODUCT_IMAGES[item.productIndex],
             price: item.product.price,
             quantity: item.quantity,
             total: round2(item.product.price * item.quantity),
@@ -513,32 +500,31 @@ async function seed() {
       },
     });
 
-    const paid = !['CANCELLED', 'PENDING_PAYMENT'].includes(plan.status);
+    const paid = plan.status === 'DELIVERED';
 
     await prisma.payment.create({
       data: {
         orderId: order.id,
         amount: total,
-        provider: plan.status === 'DELIVERED' && plan.days > 20 ? 'COD' : 'MOCK',
-        status: paid ? 'SUCCESS' : 'CANCELLED',
-        paymentId: paid ? `seed_${order.id}` : null,
-        payerEmail: paid ? plan.user.email : null,
+        currency: env.currency,
+        provider: 'COD',
+        status: plan.status === 'CANCELLED' ? 'CANCELLED' : paid ? 'SUCCESS' : 'PENDING',
+        method: 'cash_on_delivery',
+        capturedAt: paid ? daysAgo(Math.max(0, plan.days - 3)) : null,
         createdAt: daysAgo(plan.days),
       },
     });
 
     const events = [
-      { status: 'PENDING_PAYMENT', message: 'Order placed', days: plan.days },
-      ...(paid ? [{ status: 'PAID', message: 'Payment received', days: plan.days }] : []),
+      { status: 'PROCESSING', message: 'Order placed — cash on delivery', days: plan.days },
       ...(plan.status === 'CANCELLED'
         ? [{ status: 'CANCELLED', message: 'Cancelled by customer', days: Math.max(0, plan.days - 1) }]
         : [
-            { status: 'PROCESSING', message: 'Packed and ready', days: Math.max(0, plan.days - 1) },
             ...(['SHIPPED', 'DELIVERED'].includes(plan.status)
               ? [{ status: 'SHIPPED', message: 'Handed to courier', days: Math.max(0, plan.days - 2) }]
               : []),
             ...(plan.status === 'DELIVERED'
-              ? [{ status: 'DELIVERED', message: 'Delivered', days: Math.max(0, plan.days - 3) }]
+              ? [{ status: 'DELIVERED', message: 'Delivered — cash collected on delivery', days: Math.max(0, plan.days - 3) }]
               : []),
           ]),
     ];

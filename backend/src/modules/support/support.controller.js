@@ -137,7 +137,7 @@ export const supportController = {
         },
         {
           question: 'Which payment methods do you accept?',
-          answer: 'We accept cards through Stripe, PayPal and cash on delivery.',
+          answer: 'When configured, we accept payments through Razorpay or Stripe, as well as cash on delivery where available.',
         },
         {
           question: 'How do I return an item?',

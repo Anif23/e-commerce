@@ -8,8 +8,8 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline' | 'subtl
 type Size = 'sm' | 'md' | 'lg' | 'icon';
 
 const base =
-  'inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all duration-200 ' +
-  'disabled:pointer-events-none disabled:opacity-55 active:scale-[0.98] select-none';
+  'inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl font-medium transition-all duration-200 ' +
+  'disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-55 active:scale-[0.98] select-none';
 
 const variants: Record<Variant, string> = {
   primary: 'bg-brand-600 text-white shadow-sm hover:bg-brand-700 hover:shadow-md',

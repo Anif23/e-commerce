@@ -7,17 +7,44 @@ import { Card } from '../../components/ui/Display';
 import { Badge, Reveal } from '../../components/ui/Feedback';
 import { POLICIES, getPolicy, type Policy, type PolicyBlock } from '../../content/policies';
 import { useCookieConsent } from '../../providers/cookieConsent';
-import { POLICY_LAST_UPDATED, SUPPORT_EMAIL, SUPPORT_HOURS, SUPPORT_PHONE, STORE_NAME } from '../../lib/store';
+import {
+  DEFAULT_SHIPPING_FEE,
+  FREE_SHIPPING_THRESHOLD,
+  POLICY_LAST_UPDATED,
+  SUPPORT_EMAIL,
+  SUPPORT_HOURS,
+  SUPPORT_PHONE,
+  STORE_ADDRESS,
+  STORE_NAME,
+} from '../../lib/store';
+import { formatPrice } from '../../lib/format';
 import { cn } from '../../lib/cn';
+import { useStoreSettings } from '../../hooks/queries/useStoreSettings';
 
-const Block = ({ block }: { block: PolicyBlock }) => {
+type PolicyValues = {
+  storeName: string;
+  businessAddress: string;
+  taxName: string;
+  shippingFee: string;
+  freeShippingThreshold: string;
+};
+
+const interpolate = (value: string, values: PolicyValues) =>
+  value
+    .replaceAll('{{storeName}}', values.storeName)
+    .replaceAll('{{businessAddress}}', values.businessAddress)
+    .replaceAll('{{taxName}}', values.taxName)
+    .replaceAll('{{shippingFee}}', values.shippingFee)
+    .replaceAll('{{freeShippingThreshold}}', values.freeShippingThreshold);
+
+const Block = ({ block, values }: { block: PolicyBlock; values: PolicyValues }) => {
   if (block.kind === 'list') {
     return (
       <ul className="mt-3 space-y-2">
         {block.items.map((item) => (
           <li key={item} className="flex gap-2.5 text-sm leading-relaxed text-ink-600">
             <span aria-hidden className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />
-            <span>{item}</span>
+            <span>{interpolate(item, values)}</span>
           </li>
         ))}
       </ul>
@@ -32,7 +59,7 @@ const Block = ({ block }: { block: PolicyBlock }) => {
             <tr>
               {block.head.map((cell) => (
                 <th key={cell} className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-ink-500">
-                  {cell}
+                  {interpolate(cell, values)}
                 </th>
               ))}
             </tr>
@@ -45,7 +72,7 @@ const Block = ({ block }: { block: PolicyBlock }) => {
                     key={index}
                     className={cn('px-4 py-3', index === 0 ? 'font-medium text-ink-800' : 'text-ink-600')}
                   >
-                    {cell}
+                    {interpolate(cell, values)}
                   </td>
                 ))}
               </tr>
@@ -56,10 +83,10 @@ const Block = ({ block }: { block: PolicyBlock }) => {
     );
   }
 
-  return <p className="mt-3 text-sm leading-relaxed text-ink-600">{block.body}</p>;
+  return <p className="mt-3 text-sm leading-relaxed text-ink-600">{interpolate(block.body, values)}</p>;
 };
 
-const PolicyCard = ({ policy }: { policy: Policy }) => (
+const PolicyCard = ({ policy, values }: { policy: Policy; values: PolicyValues }) => (
   <Link
     to={`/policies/${policy.slug}`}
     className="group rounded-2xl border border-ink-200 bg-white p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md"
@@ -71,24 +98,24 @@ const PolicyCard = ({ policy }: { policy: Policy }) => (
       <ArrowRight className="h-4 w-4 text-ink-300 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-brand-600" />
     </div>
     <h3 className="mt-4 text-base font-semibold text-ink-900">{policy.title}</h3>
-    <p className="mt-1.5 text-sm text-ink-500">{policy.summary}</p>
+    <p className="mt-1.5 text-sm text-ink-500">{interpolate(policy.summary, values)}</p>
   </Link>
 );
 
-const PolicyIndex = () => (
+const PolicyIndex = ({ values }: { values: PolicyValues }) => (
   <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
     <Reveal>
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">Legal</p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ink-900">Policies</h1>
       <p className="mt-2 max-w-2xl text-sm text-ink-500">
-        Everything {STORE_NAME} promises — how we handle your data, how returns and refunds work, when your parcel
+        Everything {values.storeName} promises — how we handle your data, how returns and refunds work, when your parcel
         arrives, and the terms you accept when you shop with us. Last updated {POLICY_LAST_UPDATED}.
       </p>
     </Reveal>
 
     <div className="mt-8 grid gap-4 sm:grid-cols-2">
       {POLICIES.map((policy) => (
-        <PolicyCard key={policy.slug} policy={policy} />
+        <PolicyCard key={policy.slug} policy={policy} values={values} />
       ))}
     </div>
   </div>
@@ -98,8 +125,16 @@ export const PolicyPage = () => {
   const { slug } = useParams<{ slug?: string }>();
   const policy = getPolicy(slug);
   const { reopen } = useCookieConsent();
+  const { data: settings } = useStoreSettings();
+  const values: PolicyValues = {
+    storeName: settings?.storeName ?? STORE_NAME,
+    businessAddress: settings?.businessAddress ?? STORE_ADDRESS,
+    taxName: settings?.taxName ?? 'GST',
+    shippingFee: formatPrice(settings?.shippingFee ?? DEFAULT_SHIPPING_FEE),
+    freeShippingThreshold: formatPrice(settings?.freeShippingThreshold ?? FREE_SHIPPING_THRESHOLD),
+  };
 
-  if (!slug) return <PolicyIndex />;
+  if (!slug) return <PolicyIndex values={values} />;
   if (!policy) return <NotFoundPage />;
 
   return (
@@ -120,7 +155,7 @@ export const PolicyPage = () => {
         <article>
           <Reveal>
             <h1 className="text-3xl font-semibold tracking-tight text-ink-900">{policy.title}</h1>
-            <p className="mt-2 text-sm text-ink-500">{policy.audience}</p>
+            <p className="mt-2 text-sm text-ink-500">{interpolate(policy.audience, values)}</p>
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <Badge tone="neutral">Last updated {POLICY_LAST_UPDATED}</Badge>
               {policy.slug === 'cookies' && (
@@ -129,15 +164,15 @@ export const PolicyPage = () => {
                 </Button>
               )}
             </div>
-            <p className="mt-5 rounded-2xl bg-brand-50 px-4 py-3 text-sm text-ink-700">{policy.summary}</p>
+            <p className="mt-5 rounded-2xl bg-brand-50 px-4 py-3 text-sm text-ink-700">{interpolate(policy.summary, values)}</p>
           </Reveal>
 
           <div className="mt-8 space-y-8">
             {policy.sections.map((section) => (
               <section key={section.id} id={section.id} className="scroll-mt-24">
-                <h2 className="text-lg font-semibold text-ink-900">{section.heading}</h2>
+                <h2 className="text-lg font-semibold text-ink-900">{interpolate(section.heading, values)}</h2>
                 {section.blocks.map((block, index) => (
-                  <Block key={index} block={block} />
+                  <Block key={index} block={block} values={values} />
                 ))}
               </section>
             ))}
@@ -150,17 +185,17 @@ export const PolicyPage = () => {
                 <p className="text-sm font-semibold text-ink-900">Questions about this policy?</p>
                 <p className="mt-1 text-sm text-ink-600">
                   Raise a ticket from the support page or write to us directly — we answer within one working day,{' '}
-                  {SUPPORT_HOURS}.
+                  {settings?.supportHours ?? SUPPORT_HOURS}.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-4 text-sm text-ink-700">
-                  <a href={`mailto:${SUPPORT_EMAIL}`} className="inline-flex items-center gap-2 hover:text-brand-700">
-                    <Mail className="h-4 w-4" /> {SUPPORT_EMAIL}
+                  <a href={`mailto:${settings?.supportEmail ?? SUPPORT_EMAIL}`} className="inline-flex items-center gap-2 hover:text-brand-700">
+                    <Mail className="h-4 w-4" /> {settings?.supportEmail ?? SUPPORT_EMAIL}
                   </a>
                   <a
-                    href={`tel:${SUPPORT_PHONE.replace(/\s/g, '')}`}
+                    href={`tel:${(settings?.supportPhone ?? SUPPORT_PHONE).replace(/\s/g, '')}`}
                     className="inline-flex items-center gap-2 hover:text-brand-700"
                   >
-                    <PhoneCall className="h-4 w-4" /> {SUPPORT_PHONE}
+                    <PhoneCall className="h-4 w-4" /> {settings?.supportPhone ?? SUPPORT_PHONE}
                   </a>
                 </div>
               </div>
@@ -205,7 +240,7 @@ export const PolicyPage = () => {
         <p className="text-xs font-semibold uppercase tracking-wide text-ink-400">Other policies</p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           {POLICIES.filter((entry) => entry.slug !== policy.slug).map((entry) => (
-            <PolicyCard key={entry.slug} policy={entry} />
+            <PolicyCard key={entry.slug} policy={entry} values={values} />
           ))}
         </div>
       </div>

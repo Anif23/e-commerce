@@ -7,9 +7,14 @@ const testDatabaseUrl =
 // be set before any application module is loaded.
 process.env.NODE_ENV = 'test';
 process.env.DATABASE_URL = testDatabaseUrl;
-process.env.PAYMENT_MODE = 'mock';
 process.env.JWT_SECRET = 'test-access-secret';
 process.env.REFRESH_SECRET = 'test-refresh-secret';
+delete process.env.STRIPE_SECRET_KEY;
+delete process.env.STRIPE_PUBLISHABLE_KEY;
+delete process.env.STRIPE_WEBHOOK_SECRET;
+delete process.env.RAZORPAY_KEY_ID;
+delete process.env.RAZORPAY_KEY_SECRET;
+delete process.env.RAZORPAY_WEBHOOK_SECRET;
 
 export default defineConfig({
   test: {

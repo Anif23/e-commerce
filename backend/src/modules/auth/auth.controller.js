@@ -108,14 +108,28 @@ export const authController = {
     try {
       payload = jwt.verify(token, env.refreshSecret);
     } catch {
-      throw ApiError.unauthorized('Invalid refresh token');
+      res.clearCookie('refreshToken', cookieOptions);
+      await prisma.refreshToken.deleteMany({ where: { token } }).catch(() => {});
+      throw ApiError.unauthorized('Refresh token expired or invalid');
     }
 
     const stored = await prisma.refreshToken.findUnique({ where: { token } });
-    if (!stored) throw ApiError.unauthorized('Refresh token revoked');
+    if (!stored) {
+      res.clearCookie('refreshToken', cookieOptions);
+      throw ApiError.unauthorized('Refresh token revoked');
+    }
+    if (stored.expiresAt <= new Date()) {
+      await prisma.refreshToken.deleteMany({ where: { token } });
+      res.clearCookie('refreshToken', cookieOptions);
+      throw ApiError.unauthorized('Refresh token expired');
+    }
 
     const user = await prisma.user.findUnique({ where: { id: payload.id } });
-    if (!user) throw ApiError.unauthorized('Account no longer exists');
+    if (!user || user.isBlocked) {
+      await prisma.refreshToken.deleteMany({ where: { token } });
+      res.clearCookie('refreshToken', cookieOptions);
+      throw ApiError.unauthorized('Account is no longer active');
+    }
 
     // Rotate: the old token is single use.
     await prisma.refreshToken.delete({ where: { token } });

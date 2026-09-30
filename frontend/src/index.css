@@ -148,6 +148,27 @@
     outline-offset: 2px;
   }
 
+  a[href],
+  button:enabled,
+  [role='button'] {
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  input:not(:disabled),
+  textarea:not(:disabled) {
+    cursor: text;
+    user-select: text;
+    pointer-events: auto;
+  }
+
+  select:not(:disabled),
+  input[type='checkbox']:not(:disabled),
+  input[type='radio']:not(:disabled) {
+    cursor: pointer;
+    pointer-events: auto;
+  }
+
   /* Slim, unobtrusive scrollbars */
   * {
     scrollbar-width: thin;
@@ -229,6 +250,20 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+}
+
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-track {
+  animation: marquee 32s linear infinite;
+}
+
+.marquee-track:hover {
+  animation-play-state: paused;
 }
 
 /* Staggered children for grids and lists. */

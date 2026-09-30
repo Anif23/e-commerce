@@ -4,10 +4,12 @@ import { ArrowLeft, ShieldCheck, Sparkles, Truck } from 'lucide-react';
 
 import { Reveal } from '../../components/ui/Feedback';
 import { STORE_LOGO, STORE_NAME } from '../../lib/store';
+import { useStoreSettings } from '../../hooks/queries/useStoreSettings';
+import { assetUrl } from '../../lib/assets';
 
 const POINTS = [
   { icon: Truck, title: 'Live order tracking', text: 'Every status change, timestamped.' },
-  { icon: ShieldCheck, title: 'Secure checkout', text: 'PayPal, Stripe or cash on delivery.' },
+  { icon: ShieldCheck, title: 'Secure checkout', text: 'Razorpay, Stripe or cash on delivery.' },
   { icon: Sparkles, title: 'Wishlists that sync', text: 'Saved before sign-in come with you.' },
 ];
 
@@ -21,7 +23,10 @@ export const AuthShell = ({
   subtitle: string;
   children: ReactNode;
   footer: ReactNode;
-}) => (
+}) => {
+  const { data: settings } = useStoreSettings();
+
+  return (
   <div className="grid min-h-screen lg:grid-cols-2">
     <div className="relative hidden overflow-hidden bg-ink-900 text-white lg:flex lg:flex-col lg:justify-between lg:p-12">
       <div
@@ -30,10 +35,10 @@ export const AuthShell = ({
       />
 
       <Link to="/" className="relative flex items-center gap-2">
-        <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-600 text-base font-bold">{STORE_LOGO}</span>
-        <span className="text-base font-semibold">
-          Asnif <span className="text-brand-400">Store</span>
+        <span className="grid h-9 w-9 place-items-center overflow-hidden rounded-xl bg-brand-600 text-base font-bold">
+          {settings?.logoUrl ? <img src={assetUrl(settings.logoUrl)} alt="" className="h-full w-full object-contain" /> : STORE_LOGO}
         </span>
+        <span className="text-base font-semibold">{settings?.storeName ?? STORE_NAME}</span>
       </Link>
 
       <Reveal className="relative max-w-md">
@@ -62,7 +67,7 @@ export const AuthShell = ({
       </Reveal>
 
       <p className="relative text-xs text-ink-500">
-        © {new Date().getFullYear()} {STORE_NAME}
+        © {new Date().getFullYear()} {settings?.storeName ?? STORE_NAME}
       </p>
     </div>
 
@@ -85,4 +90,5 @@ export const AuthShell = ({
       </div>
     </div>
   </div>
-);
+  );
+};

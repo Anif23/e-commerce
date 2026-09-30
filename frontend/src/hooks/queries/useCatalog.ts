@@ -70,5 +70,5 @@ export const useAnnouncement = () =>
   useQuery({
     queryKey: queryKeys.announcement,
     queryFn: async () => (await announcementsApi.active()).data.data,
-    staleTime: 5 * 60_000,
+    staleTime: 60_000,
   });
