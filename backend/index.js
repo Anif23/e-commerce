@@ -1,129 +1,28 @@
-import express from "express";
-import dotenv from "dotenv";
-import cors from "cors";
-import cookieParser from "cookie-parser";
+import http from 'node:http';
 
-import http from "http";
-import { Server } from "socket.io";
+import 'dotenv/config';
 
-import { todoRoutes } from "./routes/todo.js";
-import { authRoutes } from "./routes/auth.js";
+import { createApp } from './app.js';
+import { env } from './src/config/env.js';
+import { initSocket } from './src/realtime/socket.js';
+import { startOrderExpiryJob } from './src/jobs/orderExpiry.job.js';
 
-import { userRoutes } from "./routes/ecommerce/user.js";
+const app = createApp();
+const server = http.createServer(app);
 
-import { adminRoutes } from "./routes/ecommerce/admin.js";
-
-import { errorHandler } from "./utils/ErrorHandler.js";
-
-import { startOrderExpiryJob } from "./jobs/orderExpiry.job.js";
-
-dotenv.config();
-
-const app = express();
+initSocket(server);
 startOrderExpiryJob();
 
-const server =
-  http.createServer(app);
+server.listen(env.port, '0.0.0.0', () => {
+  // eslint-disable-next-line no-console
+  console.log(`API listening on http://localhost:${env.port} (${env.nodeEnv})`);
+});
 
-export const io =
-  new Server(server, {
-    cors: {
-      origin:
-        process.env.FRONTEND_URL,
-      credentials: true,
-    },
-  });
+const shutdown = (signal) => {
+  // eslint-disable-next-line no-console
+  console.log(`\n${signal} received — shutting down`);
+  server.close(() => process.exit(0));
+};
 
-global.onlineUsers =
-  new Map();
-
-io.on(
-  "connection",
-  (socket) => {
-
-    console.log(
-      "Socket Connected:",
-      socket.id
-    );
-
-    socket.on(
-      "join",
-      (userId) => {
-
-        global.onlineUsers.set(
-          userId,
-          socket.id
-        );
-
-        console.log(
-          "User Joined:",
-          userId
-        );
-      }
-    );
-
-    socket.on(
-      "disconnect",
-      () => {
-
-        for (const [
-          key,
-          value,
-        ] of global.onlineUsers.entries()) {
-
-          if (
-            value ===
-            socket.id
-          ) {
-            global.onlineUsers.delete(
-              key
-            );
-          }
-        }
-
-        console.log(
-          "Socket Disconnected"
-        );
-      }
-    );
-  }
-);
-
-app.use(
-  cors({
-    origin:
-      process.env.FRONTEND_URL,
-    credentials: true,
-  })
-);
-
-app.use(express.json());
-
-app.use(cookieParser());
-
-app.use(
-  "/uploads",
-  express.static(
-    "uploads"
-  )
-);
-
-authRoutes(app);
-
-adminRoutes(app);
-
-userRoutes(app);
-
-todoRoutes(app);
-
-app.use(errorHandler);
-
-server.listen(
-  process.env.PORT,
-  () => {
-
-    console.log(
-      `Server running on ${process.env.PORT}`
-    );
-  }
-);
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));

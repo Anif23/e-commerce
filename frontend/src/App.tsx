@@ -1,112 +1,141 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { ProtectedRoute } from "./utils/protectedRoute";
-import { PublicRoute } from "./utils/publicRoute";
+import { lazy, Suspense } from 'react';
+import { Route, Routes } from 'react-router-dom';
 
-import Login from "./pages/Auth/login";
-import Register from "./pages/Auth/resigster";
-import TodoPage from "./pages/Todo/todos";
+import { AdminRoute, GuestRoute, ProtectedRoute, SuspenseFallback } from './components/common/ProtectedRoute';
+import { ScrollToTop } from './components/common/ScrollToTop';
+import { StorefrontLayout } from './layouts/StorefrontLayout';
+import { CookieConsentProvider } from './providers/CookieConsentProvider';
+import { CookieConsent } from './components/storefront/CookieConsent';
+import { AdminLayout } from './layouts/AdminLayout';
+import { AccountLayout } from './pages/account/AccountLayout';
 
-import Dashboard from "./pages/ECommerce/Admin/Dashboard";
-import Products from "./pages/ECommerce/Admin/Products/Page";
-import ProductForm from "./pages/ECommerce/Admin/Products/ProductForm";
-import Categories from "./pages/ECommerce/Admin/Categories/Page";
-import CategoryForm from "./pages/ECommerce/Admin/Categories/CategoryForm";
-import EcommerceAdminLayout from "./components/Ecommerce/Admin/AdminLayout";
+import { HomePage } from './pages/storefront/HomePage';
+import { ProductsPage } from './pages/storefront/ProductsPage';
+import { ProductDetailPage } from './pages/storefront/ProductDetailPage';
+import { CartPage } from './pages/storefront/CartPage';
+import { CheckoutPage } from './pages/storefront/CheckoutPage';
+import { OrdersPage } from './pages/storefront/OrdersPage';
+import { OrderDetailPage } from './pages/storefront/OrderDetailPage';
+import { TrackOrderPage } from './pages/storefront/TrackOrderPage';
+import { WishlistPage } from './pages/storefront/WishlistPage';
+import { SupportPage } from './pages/storefront/SupportPage';
+import { SupportTicketPage } from './pages/storefront/SupportTicketPage';
+import { PolicyPage } from './pages/storefront/PolicyPage';
+import { NotFoundPage } from './components/common/NotFoundPage';
 
-import UserPage from "./pages/ECommerce/User/Page";
-import UserProducts from "./pages/ECommerce/User/Products/Page";
-import ProductDetail from "./pages/ECommerce/User/Products/ProductDetail";
-import UserOrders from "./pages/ECommerce/User/Orders/Page";
-import UserCart from "./pages/ECommerce/User/Cart/Page";
-import UserProfile from "./pages/ECommerce/User/Profile/Page";
-import EcommerceUserLayout from "./components/Ecommerce/User/UserLayout";
+import { LoginPage } from './pages/auth/LoginPage';
+import { RegisterPage } from './pages/auth/RegisterPage';
 
-import MainPage from "./pages";
+import { ProfilePage } from './pages/account/ProfilePage';
+import { AddressesPage } from './pages/account/AddressesPage';
+import { NotificationsPage } from './pages/account/NotificationsPage';
+import { ReviewsPage } from './pages/account/ReviewsPage';
 
-import { Toaster } from "react-hot-toast";
-import UserOrderDetail from "./pages/ECommerce/User/Orders/OrderDetail";
-import AdminOrderDetail from "./pages/ECommerce/Admin/Orders/OrderDetail";
-import WishlistPage from "./pages/ECommerce/User/Wishlist/Page";
-import OrdersPage from "./pages/ECommerce/Admin/Orders/Page";
-import CustomersPage from "./pages/ECommerce/Admin/Customers/Page";
-import CampaignsPage from "./pages/ECommerce/Admin/Campaigns/Page";
-import { useEffect } from "react";
-import AdminProfile from "./pages/ECommerce/Admin/Profile/Page";
+/* The admin console (charts, tables) is code-split: shoppers never download it. */
+const DashboardPage = lazy(() => import('./pages/admin/DashboardPage').then((m) => ({ default: m.DashboardPage })));
+const AdminProductsPage = lazy(() =>
+  import('./pages/admin/AdminProductsPage').then((m) => ({ default: m.AdminProductsPage })),
+);
+const AdminProductFormPage = lazy(() =>
+  import('./pages/admin/AdminProductFormPage').then((m) => ({ default: m.AdminProductFormPage })),
+);
+const AdminCategoriesPage = lazy(() =>
+  import('./pages/admin/AdminCategoriesPage').then((m) => ({ default: m.AdminCategoriesPage })),
+);
+const AdminInventoryPage = lazy(() =>
+  import('./pages/admin/AdminInventoryPage').then((m) => ({ default: m.AdminInventoryPage })),
+);
+const AdminOrdersPage = lazy(() => import('./pages/admin/AdminOrdersPage').then((m) => ({ default: m.AdminOrdersPage })));
+const AdminOrderDetailPage = lazy(() =>
+  import('./pages/admin/AdminOrderDetailPage').then((m) => ({ default: m.AdminOrderDetailPage })),
+);
+const AdminCustomersPage = lazy(() =>
+  import('./pages/admin/AdminCustomersPage').then((m) => ({ default: m.AdminCustomersPage })),
+);
+const AdminCouponsPage = lazy(() => import('./pages/admin/AdminCouponsPage').then((m) => ({ default: m.AdminCouponsPage })));
+const AdminAnnouncementsPage = lazy(() =>
+  import('./pages/admin/AdminAnnouncementsPage').then((m) => ({ default: m.AdminAnnouncementsPage })),
+);
+const AdminReviewsPage = lazy(() => import('./pages/admin/AdminReviewsPage').then((m) => ({ default: m.AdminReviewsPage })));
+const AdminSupportPage = lazy(() => import('./pages/admin/AdminSupportPage').then((m) => ({ default: m.AdminSupportPage })));
+const AdminReportsPage = lazy(() => import('./pages/admin/AdminReportsPage').then((m) => ({ default: m.AdminReportsPage })));
+const AdminSettingsPage = lazy(() => import('./pages/admin/AdminSettingsPage').then((m) => ({ default: m.AdminSettingsPage })));
 
-function App() {
-
-  useEffect(() => {
-
-    if (
-      Notification.permission !==
-      "granted"
-    ) {
-
-      Notification.requestPermission();
-    }
-
-  }, []);
-
+export default function App() {
   return (
-    <>
-      <Toaster />
-      <BrowserRouter>
-        <Routes>
+    <CookieConsentProvider>
+      <CookieConsent />
+      <ScrollToTop />
 
-          {/* PUBLIC */}
-          <Route element={<PublicRoute />}>
-            <Route path="/" element={<MainPage />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-          </Route>
+      <Routes>
+        {/* Storefront */}
+        <Route element={<StorefrontLayout />}>
+          <Route index element={<HomePage />} />
+          <Route path="products" element={<ProductsPage />} />
+          <Route path="products/:slug" element={<ProductDetailPage />} />
+          <Route path="cart" element={<CartPage />} />
+          <Route path="wishlist" element={<WishlistPage />} />
+          <Route path="support" element={<SupportPage />} />
+          <Route path="policies" element={<PolicyPage />} />
+          <Route path="policies/:slug" element={<PolicyPage />} />
 
-          {/* USER (PUBLIC ACCESS) */}
-          <Route path="/user/ecommerce" element={<EcommerceUserLayout />}>
-            <Route index element={<UserPage />} />
-            <Route path="products" element={<UserProducts />} />
-            <Route path="products/:id" element={<ProductDetail />} />
+          {/* Signed-in shoppers */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="checkout" element={<CheckoutPage />} />
+            <Route path="orders/:id" element={<OrderDetailPage />} />
+            <Route path="track" element={<TrackOrderPage />} />
+            <Route path="support/:id" element={<SupportTicketPage />} />
 
-            <Route path="cart" element={<UserCart />} />
-            <Route path="wishlist" element={<WishlistPage />} />
-
-            {/* PROTECTED USER ROUTES */}
-            <Route element={<ProtectedRoute role="USER" />}>
-              <Route path="orders" element={<UserOrders />} />
-              <Route path="orders/:id" element={<UserOrderDetail />} />
-              <Route path="profile" element={<UserProfile />} />
-            </Route>
-          </Route>
-
-          {/* ADMIN */}
-          <Route element={<ProtectedRoute role="ADMIN" />}>
-            <Route path="/admin/ecommerce" element={<EcommerceAdminLayout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="products" element={<Products />} />
-              <Route path="categories" element={<Categories />} />
-              <Route path="product" element={<ProductForm />} />
-              <Route path="product/:id" element={<ProductForm />} />
-              <Route path="category" element={<CategoryForm />} />
-              <Route path="category/:id" element={<CategoryForm />} />
+            <Route path="account" element={<AccountLayout />}>
+              <Route index element={<ProfilePage />} />
               <Route path="orders" element={<OrdersPage />} />
-              <Route path="orders/:id" element={<AdminOrderDetail />} />
-              <Route path="customers" element={<CustomersPage />} />
-              <Route path="campaigns" element={<CampaignsPage />} />
-              <Route path="profile" element={<AdminProfile />} />
+              <Route path="addresses" element={<AddressesPage />} />
+              <Route path="notifications" element={<NotificationsPage />} />
+              <Route path="reviews" element={<ReviewsPage />} />
             </Route>
           </Route>
+        </Route>
 
-          {/* TODO */}
-          <Route element={<ProtectedRoute role="USER" />}>
-            <Route path="/todo" element={<TodoPage />} />
+        {/* Auth */}
+        <Route element={<GuestRoute />}>
+          <Route path="login" element={<LoginPage />} />
+          <Route path="register" element={<RegisterPage />} />
+        </Route>
+
+        {/* Admin console */}
+        <Route element={<AdminRoute />}>
+          <Route
+            path="admin"
+            element={
+              <Suspense fallback={<SuspenseFallback />}>
+                <AdminLayout />
+              </Suspense>
+            }
+          >
+            <Route index element={<DashboardPage />} />
+            <Route path="reports" element={<AdminReportsPage />} />
+
+            <Route path="products" element={<AdminProductsPage />} />
+            <Route path="products/new" element={<AdminProductFormPage />} />
+            <Route path="products/:id/edit" element={<AdminProductFormPage />} />
+
+            <Route path="categories" element={<AdminCategoriesPage />} />
+            <Route path="inventory" element={<AdminInventoryPage />} />
+            <Route path="reviews" element={<AdminReviewsPage />} />
+
+            <Route path="orders" element={<AdminOrdersPage />} />
+            <Route path="orders/:id" element={<AdminOrderDetailPage />} />
+
+            <Route path="customers" element={<AdminCustomersPage />} />
+            <Route path="coupons" element={<AdminCouponsPage />} />
+            <Route path="announcements" element={<AdminAnnouncementsPage />} />
+            <Route path="support" element={<AdminSupportPage />} />
+            <Route path="settings" element={<AdminSettingsPage />} />
           </Route>
+        </Route>
 
-          {/* FALLBACK */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-
-        </Routes>
-      </BrowserRouter>
-    </>
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </CookieConsentProvider>
   );
 }
-
-export default App;

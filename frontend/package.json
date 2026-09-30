@@ -7,10 +7,11 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:journey": "node ./scripts/journey-check.mjs",
+    "check:render": "node ./scripts/render-smoke.mjs"
   },
   "dependencies": {
-    "@paypal/react-paypal-js": "^10.1.1",
     "@tailwindcss/vite": "^4.2.2",
     "@tanstack/react-query": "^5.99.2",
     "axios": "^1.15.0",
