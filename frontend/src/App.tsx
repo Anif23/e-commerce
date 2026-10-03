@@ -49,6 +49,9 @@ const AdminOrdersPage = lazy(() => import('./pages/admin/AdminOrdersPage').then(
 const AdminOrderDetailPage = lazy(() =>
   import('./pages/admin/AdminOrderDetailPage').then((m) => ({ default: m.AdminOrderDetailPage })),
 );
+const AdminPaymentsPage = lazy(() =>
+  import('./pages/admin/AdminPaymentsPage').then((m) => ({ default: m.AdminPaymentsPage })),
+);
 const AdminCustomersPage = lazy(() =>
   import('./pages/admin/AdminCustomersPage').then((m) => ({ default: m.AdminCustomersPage })),
 );
@@ -125,6 +128,7 @@ export default function App() {
 
             <Route path="orders" element={<AdminOrdersPage />} />
             <Route path="orders/:id" element={<AdminOrderDetailPage />} />
+            <Route path="payments" element={<AdminPaymentsPage />} />
 
             <Route path="customers" element={<AdminCustomersPage />} />
             <Route path="coupons" element={<AdminCouponsPage />} />

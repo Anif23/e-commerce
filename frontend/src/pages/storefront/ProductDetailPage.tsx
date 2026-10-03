@@ -33,15 +33,24 @@ import { queryKeys } from '../../lib/queryKeys';
 import toast from 'react-hot-toast';
 import type { Product } from '../../types/api';
 
-const Gallery = ({ product }: { product: Product }) => {
-  const images = product.images.length ? product.images : [product.image ?? ''];
+const Gallery = ({ product, variantImage }: { product: Product; variantImage?: string | null }) => {
+  // Flipkart-style: the selected variant's own image leads the gallery so the
+  // main photo always matches the colour/style the shopper picked.
+  const images = useMemo(() => {
+    const baseImages = product.images.length ? product.images : [product.image ?? ''];
+    return variantImage && !baseImages.includes(variantImage) ? [variantImage, ...baseImages] : baseImages;
+  }, [product.images, product.image, variantImage]);
+
   const [active, setActive] = useState(0);
 
-  // Reset to the first image when a different product renders.
-  const [shownProduct, setShownProduct] = useState(product.id);
-  if (product.id !== shownProduct) {
-    setShownProduct(product.id);
-    setActive(0);
+  // Reset focus when a different product renders or the selected variant
+  // changes, snapping the main photo to that variant's image.
+  const resetKey = `${product.id}:${variantImage ?? ''}`;
+  const [shownKey, setShownKey] = useState(resetKey);
+  if (resetKey !== shownKey) {
+    setShownKey(resetKey);
+    const index = variantImage ? images.findIndex((image) => image === variantImage) : 0;
+    setActive(index >= 0 ? index : 0);
   }
 
   return (
@@ -287,7 +296,7 @@ export const ProductDetailPage = () => {
       </nav>
 
       <div className="grid gap-10 lg:grid-cols-2">
-        <Gallery product={product} />
+        <Gallery product={product} variantImage={activeVariant?.image ?? null} />
 
         <div>
           <div className="flex flex-wrap items-center gap-2">

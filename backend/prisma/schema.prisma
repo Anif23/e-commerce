@@ -580,6 +580,10 @@ model SupportTicket {
 
   messages SupportMessage[]
 
+  // When an admin last opened this ticket; customer messages after this
+  // timestamp count as unread in the console.
+  adminLastReadAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

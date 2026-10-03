@@ -162,7 +162,10 @@ const StripeCardForm = ({
       try {
         if (!publishableKey) throw new Error('Stripe is not configured for this store');
         const factory = await loadStripeJs();
-        const stripe = factory(publishableKey);
+        // advancedFraudSignals:false stops Stripe.js firing the r.stripe.com
+        // Radar beacon, which ad-blockers block (ERR_BLOCKED_BY_CLIENT) and which
+        // we don't use — removing a recurring console error at checkout.
+        const stripe = factory(publishableKey, { advancedFraudSignals: false });
         const elements = stripe.elements({ clientSecret });
         const card = elements.create('card', { style: { base: { fontSize: '15px' } } });
 

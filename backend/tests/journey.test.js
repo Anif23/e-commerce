@@ -167,7 +167,8 @@ describe('purchase journey', () => {
 
     expect(outcome.failed).toBe(false);
     expect(updated.status).toBe('PAID');
-    expect(updated.timeline.map((event) => event.status)).toContain('PAID');
+    // getOrderOrThrow returns the raw order; the tracking timeline is `events`.
+    expect(updated.events.map((event) => event.status)).toContain('PAID');
 
     const stored = await prisma.order.findUnique({
       where: { id: pendingOrderId },

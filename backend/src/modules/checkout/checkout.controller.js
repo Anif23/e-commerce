@@ -4,7 +4,7 @@ import { env } from '../../config/env.js';
 import { prisma } from '../../lib/prisma.js';
 import { ApiError, asyncHandler } from '../../lib/errors.js';
 import { summarizeCart, serializeCart } from '../cart/cart.service.js';
-import { isOnlinePayment, placeOrder, startPayment, getOrderOrThrow, serializeOrder } from '../orders/order.service.js';
+import { isOnlinePayment, placeOrder, startPayment, getOrderOrThrow, serializeOrder, reopenOrderForPayment } from '../orders/order.service.js';
 import { isProviderAvailable, listPaymentMethods } from '../../services/payments/index.js';
 import { rateLimit } from '../../middleware/rateLimit.js';
 
@@ -93,7 +93,7 @@ export const checkoutController = {
         addressId = created.id;
       }
 
-      const { order, online } = await placeOrder({
+      const { order, online, reused } = await placeOrder({
         userId: req.user.id,
         addressId,
         provider: body.paymentMethod,
@@ -122,9 +122,11 @@ export const checkoutController = {
         success: true,
         message: paymentStartFailed
           ? 'Your order was saved, but payment could not be started. You can retry from the order page.'
-          : online
-            ? 'Order created — complete your payment to confirm it'
-            : 'Order placed successfully. Pay on delivery.',
+          : reused
+            ? 'We reopened your existing order — complete the payment to confirm it'
+            : online
+              ? 'Order created — complete your payment to confirm it'
+              : 'Order placed successfully. Pay on delivery.',
         data: {
           order: serializeOrder(order),
           payment: payment
@@ -135,6 +137,7 @@ export const checkoutController = {
               }
             : { provider: body.paymentMethod, status: paymentStartFailed ? 'FAILED' : 'PENDING' },
           paymentStartFailed,
+          reused: Boolean(reused),
         },
       });
     }),
@@ -146,15 +149,20 @@ export const checkoutController = {
    * waiting — lets a customer retry a closed or interrupted gateway flow.
    */
   pay: asyncHandler(async (req, res) => {
-    const order = await getOrderOrThrow(req.params.orderId);
+    let order = await getOrderOrThrow(req.params.orderId);
 
     if (order.userId !== req.user.id) throw ApiError.forbidden('This order is not yours');
-    if (order.status !== 'PENDING_PAYMENT') throw ApiError.badRequest('This order is not awaiting payment');
-    if (order.expiresAt && new Date(order.expiresAt) <= new Date()) {
-      throw ApiError.badRequest('The payment window expired. Place a new order to try again.');
-    }
     if (!isOnlinePayment(order.payment?.provider)) {
       throw ApiError.badRequest('This order does not require an online payment');
+    }
+
+    const windowClosed = order.expiresAt && new Date(order.expiresAt) <= new Date();
+
+    if (order.status === 'EXPIRED' || (order.status === 'PENDING_PAYMENT' && windowClosed)) {
+      // Reopen the SAME order rather than making the shopper place a new one.
+      order = await reopenOrderForPayment(order);
+    } else if (order.status !== 'PENDING_PAYMENT') {
+      throw ApiError.badRequest('This order is not awaiting payment');
     }
 
     const payment = await startPayment({ order, provider: order.payment.provider });

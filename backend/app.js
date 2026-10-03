@@ -14,6 +14,10 @@ import { apiRoutes } from './src/routes/index.js';
 export const createApp = () => {
   const app = express();
 
+  // Behind the preview/production reverse proxy: honour X-Forwarded-Proto so
+  // `req.secure` is correct and the refresh cookie can be SameSite=None;Secure.
+  app.set('trust proxy', 1);
+
   const allowedOrigins = [env.frontendUrl, 'http://localhost:5173', 'http://127.0.0.1:5173'].filter(Boolean);
 
   app.use(

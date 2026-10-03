@@ -305,6 +305,9 @@ export interface SupportTicket {
   priority: 'LOW' | 'NORMAL' | 'HIGH';
   createdAt: string;
   updatedAt: string;
+  adminLastReadAt?: string | null;
+  /** Customer messages the admin has not opened yet (admin list only). */
+  unread?: number;
   user?: { id: number; username: string; email: string };
   messages?: SupportMessage[];
 }
@@ -322,6 +325,39 @@ export interface PaymentMethod {
   id: CheckoutPaymentProvider;
   label: string;
   online: boolean;
+}
+
+/** A payment row with its order context, for the admin finance view. */
+export interface AdminPayment {
+  id: number;
+  orderId: number;
+  amount: number;
+  currency: string;
+  status: PaymentStatus;
+  provider: PaymentProvider;
+  method?: string | null;
+  reference?: string | null;
+  gatewayOrderId?: string | null;
+  payerEmail?: string | null;
+  payerContact?: string | null;
+  failureCode?: string | null;
+  capturedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  order?: {
+    id: number;
+    status: OrderStatus;
+    total: number;
+    placedAt: string;
+    customer?: { id: number; username: string; email: string } | null;
+  } | null;
+}
+
+export interface PaymentStats {
+  range: string;
+  byStatus: Record<PaymentStatus, number>;
+  byProvider: { provider: PaymentProvider; count: number; amount: number }[];
+  totals: { captured: number; pending: number; refunded: number };
 }
 
 export interface DashboardStats {

@@ -172,6 +172,108 @@ const clearCart = async (tx, userId) => {
 };
 
 /**
+ * Finds an unpaid order that still matches the current cart so a shopper who
+ * lets a payment lapse (or hits "pay again") reuses the same order instead of
+ * spawning a duplicate. This mirrors how Flipkart/Amazon keep one order per
+ * checkout and simply reopen the payment window.
+ */
+const findReusableOrder = async ({ userId, lines }) => {
+  const candidate = await prisma.order.findFirst({
+    where: { userId, status: { in: ['PENDING_PAYMENT', 'EXPIRED'] } },
+    orderBy: { id: 'desc' },
+    include: { items: true, payment: true },
+  });
+
+  if (!candidate) return null;
+
+  const identical =
+    candidate.items.length === lines.length &&
+    lines.every((line) =>
+      candidate.items.some(
+        (item) =>
+          item.productId === line.productId &&
+          (item.variantId ?? null) === (line.variantId ?? null) &&
+          item.quantity === line.quantity,
+      ),
+    );
+
+  return identical ? candidate : null;
+};
+
+/**
+ * Reopens the payment window on an order that is still unpaid. Safe because
+ * online orders only reserve stock once payment is confirmed, so nothing has to
+ * be restocked — we simply extend the deadline and restart the gateway payment.
+ */
+export const reopenOrderForPayment = async (order) => {
+  const expiresAt = new Date(Date.now() + env.paymentWindowMinutes * 60_000);
+
+  await prisma.$transaction(async (tx) => {
+    const claimed = await tx.order.updateMany({
+      where: { id: order.id, status: { in: ['PENDING_PAYMENT', 'EXPIRED'] } },
+      data: { status: 'PENDING_PAYMENT', expiresAt },
+    });
+
+    if (!claimed.count) throw ApiError.badRequest('This order is no longer awaiting payment');
+
+    await tx.payment.update({
+      where: { orderId: order.id },
+      data: { status: 'PENDING', amount: order.total, currency: env.currency, failureCode: null },
+    });
+
+    if (order.status === 'EXPIRED') {
+      await addEvent(tx, {
+        orderId: order.id,
+        status: 'PENDING_PAYMENT',
+        message: 'Payment window reopened',
+        actor: 'customer',
+      });
+    }
+  });
+
+  return getOrderOrThrow(order.id);
+};
+
+/** Refreshes an existing unpaid order to the current cart/address and reopens it. */
+const reuseOrder = async ({ order, address, provider, customerNote, totals }) => {
+  const expiresAt = new Date(Date.now() + env.paymentWindowMinutes * 60_000);
+  const wasExpired = order.status === 'EXPIRED';
+
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: order.id },
+      data: {
+        status: 'PENDING_PAYMENT',
+        addressId: address.id,
+        customerNote: customerNote ?? null,
+        subtotal: totals.subtotal,
+        discount: totals.discount,
+        shipping: totals.shipping,
+        tax: totals.tax,
+        taxName: totals.taxName,
+        taxRatePercent: totals.taxRatePercent,
+        total: totals.total,
+        expiresAt,
+      },
+    });
+
+    await tx.payment.update({
+      where: { orderId: order.id },
+      data: { provider, status: 'PENDING', amount: totals.total, currency: env.currency, failureCode: null },
+    });
+
+    await addEvent(tx, {
+      orderId: order.id,
+      status: 'PENDING_PAYMENT',
+      message: wasExpired ? 'Payment window reopened' : 'Checkout restarted for the same order',
+      actor: 'customer',
+    });
+  });
+
+  return getOrderOrThrow(order.id);
+};
+
+/**
  * Places an order from the current cart.
  * Online payments stay PENDING_PAYMENT until the gateway confirms; COD moves
  * straight to PROCESSING and reserves stock immediately.
@@ -202,6 +304,21 @@ export const placeOrder = async ({ userId, addressId, provider, customerNote }) 
   if (totals.total <= 0) throw ApiError.badRequest('Order total must be greater than zero');
 
   const online = isOnlinePayment(provider);
+
+  // Online only: reuse an existing unpaid order for the same cart instead of
+  // creating a duplicate when the shopper retries a lapsed payment. COD orders
+  // reserve stock and clear the cart immediately, so they are never reused.
+  if (online) {
+    const reusable = await findReusableOrder({ userId, lines });
+
+    if (reusable) {
+      const revived = await reuseOrder({ order: reusable, address, provider, customerNote, totals });
+
+      emitOrderUpdate(revived, 'REOPENED');
+
+      return { order: revived, totals, online, reused: true };
+    }
+  }
 
   const order = await prisma.$transaction(async (tx) => {
     const created = await tx.order.create({

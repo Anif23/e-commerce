@@ -14,10 +14,15 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { ArrowDownRight, ArrowUpRight, DollarSign, Receipt, Users } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, DollarSign, Download, Receipt, Users } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 import { formatPrice } from '../../lib/format';
+import { adminApi } from '../../lib/api/endpoints';
+import { getErrorMessage } from '../../lib/api/client';
 import { Badge, EmptyState, ErrorState, PageHeader, StatCard, Tabs } from '../../components/ui';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Field';
 import { Skeleton } from '../../components/ui/Feedback';
 import { useAdminReports } from '../../hooks/queries/useAdmin';
 
@@ -45,7 +50,34 @@ const Delta = ({ value }: { value: number }) => (
 
 export const AdminReportsPage = () => {
   const [range, setRange] = useState('30d');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [downloading, setDownloading] = useState<'csv' | 'pdf' | null>(null);
   const { data, isLoading, isError, refetch } = useAdminReports(range);
+
+  const customWindow = Boolean(from && to);
+
+  const downloadReport = async (format: 'csv' | 'pdf') => {
+    setDownloading(format);
+    try {
+      const response = await adminApi.exportReport(
+        customWindow ? { format, from, to } : { format, range },
+      );
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `sales-report-${new Date().toISOString().slice(0, 10)}.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success('Report downloaded');
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Could not download the report'));
+    } finally {
+      setDownloading(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -54,6 +86,62 @@ export const AdminReportsPage = () => {
         description="Revenue, best sellers and coupon performance."
         action={<Tabs className="w-80" value={range} onChange={setRange} tabs={RANGES} />}
       />
+
+      <section className="surface flex flex-wrap items-end gap-3 p-4">
+        <div className="mr-auto">
+          <h2 className="text-sm font-semibold text-ink-900">Download report</h2>
+          <p className="text-xs text-ink-500">
+            {customWindow ? `Custom period ${from} → ${to}` : `Using the selected range (${range}).`} Pick a custom
+            period or download the current range as CSV or PDF.
+          </p>
+        </div>
+
+        <Input
+          type="date"
+          aria-label="From date"
+          className="w-44"
+          value={from}
+          max={to || undefined}
+          onChange={(event) => setFrom(event.target.value)}
+        />
+        <Input
+          type="date"
+          aria-label="To date"
+          className="w-44"
+          value={to}
+          min={from || undefined}
+          onChange={(event) => setTo(event.target.value)}
+        />
+        {customWindow && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setFrom('');
+              setTo('');
+            }}
+          >
+            Clear
+          </Button>
+        )}
+
+        <Button
+          variant="outline"
+          leftIcon={<Download className="h-4 w-4" />}
+          loading={downloading === 'csv'}
+          disabled={downloading !== null}
+          onClick={() => downloadReport('csv')}
+        >
+          CSV
+        </Button>
+        <Button
+          leftIcon={<Download className="h-4 w-4" />}
+          loading={downloading === 'pdf'}
+          disabled={downloading !== null}
+          onClick={() => downloadReport('pdf')}
+        >
+          PDF
+        </Button>
+      </section>
 
       {isError ? (
         <ErrorState message="We could not build that report." onRetry={() => refetch()} />

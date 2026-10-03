@@ -78,7 +78,10 @@ export const seedCatalog = async () => {
       name: unique('Variant Product'),
       slug: unique('variant-product'),
       price: 100,
-      stock: 0,
+      // product.stock is the denormalised aggregate of variant stock (mirrors
+      // the real seed where product.stock === sum of variant stocks). Keeping
+      // it in sync is what the paid-order reservation guard relies on.
+      stock: 8,
       categoryId: category.id,
       options: {
         create: [{ name: 'Size', values: ['S', 'M'], position: 0 }],
