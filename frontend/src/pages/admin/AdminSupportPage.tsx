@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Send } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
@@ -8,6 +9,7 @@ import { Select, Textarea } from '../../components/ui/Field';
 import { Badge, EmptyState, ErrorState, PageHeader, Pagination, Tabs } from '../../components/ui';
 import { Skeleton } from '../../components/ui/Feedback';
 import { useAdminSupport, useAdminSupportMutations, useAdminSupportTicket } from '../../hooks/queries/useAdmin';
+import { queryKeys } from '../../lib/queryKeys';
 import type { SupportTicket } from '../../types/api';
 
 const TONE: Record<SupportTicket['status'], 'warning' | 'brand' | 'success' | 'neutral'> = {
@@ -54,6 +56,7 @@ const ReplyComposer = ({
 };
 
 export const AdminSupportPage = () => {
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -63,6 +66,12 @@ export const AdminSupportPage = () => {
   const { reply: sendReply, updateStatus } = useAdminSupportMutations();
 
   const tickets = data?.data ?? [];
+
+  // Opening a ticket marks it read on the server; drop the nav badge to match.
+  const openedId = ticket?.id;
+  useEffect(() => {
+    if (openedId) queryClient.invalidateQueries({ queryKey: queryKeys.admin.supportUnread });
+  }, [openedId, queryClient]);
 
   // Open the newest ticket by default so the queue never looks empty.
   if (!selectedId && tickets.length) setSelectedId(tickets[0].id);
@@ -113,7 +122,15 @@ export const AdminSupportPage = () => {
                       )}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <p className="line-clamp-1 text-sm font-medium text-ink-900">{entry.subject}</p>
+                        <p className="line-clamp-1 text-sm font-medium text-ink-900">
+                          {(entry.unread ?? 0) > 0 && (
+                            <span
+                              className="mr-1.5 inline-block h-2 w-2 rounded-full bg-danger align-middle"
+                              title={`${entry.unread} unread`}
+                            />
+                          )}
+                          {entry.subject}
+                        </p>
                         <Badge tone={TONE[entry.status]}>{entry.status}</Badge>
                       </div>
                       <p className="text-xs text-ink-500">

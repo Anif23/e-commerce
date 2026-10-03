@@ -6,3 +6,6 @@ node_modules
 
 /uploads/*
 !/uploads/.gitkeep
+# Local sandbox-only test scaffolding (embedded Postgres data + launcher)
+.tmp
+/scripts/dev-db.mjs

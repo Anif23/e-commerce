@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Cookie, CreditCard, Headphones, RotateCcw, Truck } from 'lucide-react';
+import { CreditCard, Headphones, RotateCcw, Truck } from 'lucide-react';
 
 import { useCategories } from '../../hooks/queries/useCatalog';
 import { useCookieConsent } from '../../providers/cookieConsent';
@@ -141,18 +141,10 @@ export const Footer = () => {
           </div>
         </div>
 
-        <div className="flex flex-col items-center justify-between gap-3 border-t border-ink-100 py-6 text-xs text-ink-400 sm:flex-row">
-          <p>© {new Date().getFullYear()} {settings?.storeName ?? STORE_NAME}. Prices in INR; {settings?.taxName ?? 'GST'} shown at checkout. Made in India 🇮🇳</p>
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-            {POLICIES.map((policy) => (
-              <Link key={policy.slug} to={`/policies/${policy.slug}`} className="transition hover:text-brand-700">
-                {policy.title}
-              </Link>
-            ))}
-            <button type="button" onClick={reopen} className="inline-flex items-center gap-1.5 transition hover:text-brand-700">
-              <Cookie className="h-3.5 w-3.5" /> Cookie settings
-            </button>
-          </div>
+        <div className="border-t border-ink-100 py-6 text-center text-xs text-ink-400">
+          <p>
+            © {new Date().getFullYear()} {settings?.storeName ?? STORE_NAME}. All rights reserved.
+          </p>
         </div>
       </div>
     </footer>

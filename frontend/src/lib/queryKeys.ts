@@ -44,6 +44,8 @@ export const queryKeys = {
     orders: (params: unknown) => ['admin', 'orders', params] as const,
     order: (id: number) => ['admin', 'order', id] as const,
     orderCounters: ['admin', 'order-counters'] as const,
+    payments: (params: unknown) => ['admin', 'payments', params] as const,
+    paymentStats: (params: unknown) => ['admin', 'payment-stats', params] as const,
     customers: (params: unknown) => ['admin', 'customers', params] as const,
     customer: (id: number) => ['admin', 'customer', id] as const,
     inventory: (params: unknown) => ['admin', 'inventory', params] as const,
@@ -53,6 +55,7 @@ export const queryKeys = {
     reviews: (params: unknown) => ['admin', 'reviews', params] as const,
     support: (params: unknown) => ['admin', 'support', params] as const,
     supportTicket: (id: number) => ['admin', 'support-ticket', id] as const,
+    supportUnread: ['admin', 'support-unread'] as const,
     notifications: ['admin', 'notifications'] as const,
   },
 };

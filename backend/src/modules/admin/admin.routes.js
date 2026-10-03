@@ -6,6 +6,7 @@ import { reportsController } from './reports.controller.js';
 import { customersController } from './customers.controller.js';
 import { inventoryController } from './inventory.controller.js';
 import { adminOrdersController } from './orders.controller.js';
+import { adminPaymentsController } from './payments.controller.js';
 import { adminNotificationsController } from './notifications.controller.js';
 import { adminReviewsRoutes } from '../reviews/reviews.routes.js';
 import { adminSupportRoutes } from '../support/support.routes.js';
@@ -28,6 +29,7 @@ adminRoutes.get('/dashboard', dashboardController.stats);
 adminRoutes.get('/dashboard/activity', dashboardController.activity);
 adminRoutes.get('/reports', reportsController.overview);
 adminRoutes.get('/reports/inventory', reportsController.inventory);
+adminRoutes.get('/reports/export', reportsController.export);
 
 /* orders */
 adminRoutes.get('/orders/stats/counters', adminOrdersController.counters);
@@ -35,6 +37,10 @@ adminRoutes.get('/orders', adminOrdersController.list);
 adminRoutes.get('/orders/:id', adminOrdersController.detail);
 adminRoutes.patch('/orders/:id/status', adminOrdersController.updateStatus);
 adminRoutes.patch('/orders/:id/payment', adminOrdersController.updatePayment);
+
+/* payments (dedicated finance view) */
+adminRoutes.get('/payments/stats', adminPaymentsController.stats);
+adminRoutes.get('/payments', adminPaymentsController.list);
 
 /* customers */
 adminRoutes.get('/customers', customersController.list);

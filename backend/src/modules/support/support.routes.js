@@ -18,6 +18,7 @@ export const adminSupportRoutes = Router();
 
 adminSupportRoutes.use(authMiddleware, adminMiddleware);
 adminSupportRoutes.get('/', supportController.adminList);
+adminSupportRoutes.get('/unread', supportController.adminUnread);
 adminSupportRoutes.get('/:id', supportController.adminDetail);
 adminSupportRoutes.patch('/:id/status', supportController.adminStatus);
 adminSupportRoutes.post('/:id/messages', supportController.reply);

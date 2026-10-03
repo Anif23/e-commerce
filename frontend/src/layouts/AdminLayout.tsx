@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   Bell,
   Boxes,
+  CreditCard,
   ClipboardList,
   LayoutDashboard,
   LogOut,
@@ -25,7 +26,7 @@ import { useStoreSettings } from '../hooks/queries/useStoreSettings';
 import { initialsOf } from '../lib/format';
 import { useAuthStore } from '../store/authStore';
 import { useLogout } from '../hooks/queries/useAuth';
-import { useAdminNotifications } from '../hooks/queries/useAdmin';
+import { useAdminNotifications, useAdminSupportUnread } from '../hooks/queries/useAdmin';
 import { IconButton } from '../components/ui/Button';
 
 const GROUPS = [
@@ -49,6 +50,7 @@ const GROUPS = [
     label: 'Sales',
     links: [
       { to: '/admin/orders', label: 'Orders', icon: ClipboardList, end: false },
+      { to: '/admin/payments', label: 'Payments', icon: CreditCard, end: false },
       { to: '/admin/customers', label: 'Customers', icon: Users, end: false },
       { to: '/admin/coupons', label: 'Coupons', icon: TicketPercent, end: false },
       { to: '/admin/announcements', label: 'Announcements', icon: Megaphone, end: false },
@@ -71,8 +73,12 @@ export const AdminLayout = () => {
   const logout = useLogout();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { data: notifications } = useAdminNotifications();
+  const { data: supportUnread } = useAdminSupportUnread();
 
+  // The bell chip counts admin notifications; the Support badge counts tickets
+  // awaiting a reply (they are different things and must not share a number).
   const unread = notifications?.unread ?? 0;
+  const supportBadge = supportUnread ?? 0;
 
   const nav = (
     <nav className="flex flex-1 flex-col gap-6 overflow-y-auto px-3 py-5">
@@ -100,9 +106,9 @@ export const AdminLayout = () => {
               >
                 <link.icon className="h-4 w-4" />
                 {link.label}
-                {link.to === '/admin/support' && unread > 0 && (
+                {link.to === '/admin/support' && supportBadge > 0 && (
                   <span className="ml-auto rounded-full bg-danger px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                    {unread}
+                    {supportBadge}
                   </span>
                 )}
               </NavLink>

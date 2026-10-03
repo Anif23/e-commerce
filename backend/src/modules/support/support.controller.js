@@ -31,6 +31,16 @@ const ownedTicket = async (id, user) => {
   return ticket;
 };
 
+/** Customer messages posted after the admin last opened the ticket. */
+const countUnread = (ticket) => {
+  const readAt = ticket.adminLastReadAt ? new Date(ticket.adminLastReadAt).getTime() : 0;
+
+  return (ticket.messages ?? []).reduce(
+    (count, message) => (!message.isAdmin && new Date(message.createdAt).getTime() > readAt ? count + 1 : count),
+    0,
+  );
+};
+
 export const supportController = {
   /** POST /api/support/tickets */
   create: asyncHandler(async (req, res) => {
@@ -90,7 +100,12 @@ export const supportController = {
 
     await prisma.supportTicket.update({
       where: { id: ticket.id },
-      data: { status: isAdmin ? 'PENDING' : 'OPEN', updatedAt: new Date() },
+      data: {
+        status: isAdmin ? 'PENDING' : 'OPEN',
+        updatedAt: new Date(),
+        // An admin who replies has clearly read the thread.
+        ...(isAdmin ? { adminLastReadAt: new Date() } : {}),
+      },
     });
 
     if (isAdmin) {
@@ -103,6 +118,10 @@ export const supportController = {
       });
 
       emitToUser(ticket.userId, 'support_update', { ticketId: ticket.id });
+    } else {
+      // Customer replied: fan out to the admin console so the queue and unread
+      // badge update live instead of only on the next manual refresh.
+      emitToAdmins('admin_support', { ticketId: ticket.id, subject: ticket.subject });
     }
 
     const updated = await ownedTicket(ticket.id, req.user);
@@ -166,7 +185,30 @@ export const supportController = {
       }),
     ]);
 
-    res.json({ success: true, data: tickets, pagination: getMeta(total, page, limit) });
+    // Customer messages newer than the admin's last read marker are unread.
+    const withUnread = tickets.map((ticket) => ({
+      ...ticket,
+      unread: countUnread(ticket),
+    }));
+
+    res.json({ success: true, data: withUnread, pagination: getMeta(total, page, limit) });
+  }),
+
+  /** GET /api/admin/support/unread — total tickets awaiting an admin reply. */
+  adminUnread: asyncHandler(async (_req, res) => {
+    const rows = await prisma.$queryRaw`
+      SELECT COUNT(*)::int AS count
+      FROM "SupportTicket" t
+      WHERE t.status <> 'CLOSED'
+        AND EXISTS (
+          SELECT 1 FROM "SupportMessage" m
+          WHERE m."ticketId" = t.id
+            AND m."isAdmin" = false
+            AND m."createdAt" > COALESCE(t."adminLastReadAt", '-infinity'::timestamp)
+        )
+    `;
+
+    res.json({ success: true, data: { unread: Number(rows[0]?.count ?? 0) } });
   }),
 
   adminDetail: asyncHandler(async (req, res) => {
@@ -174,7 +216,11 @@ export const supportController = {
 
     if (!ticket) throw ApiError.notFound('Ticket not found');
 
-    res.json({ success: true, data: ticket });
+    // Opening the conversation marks it read, clearing the unread badge.
+    const readAt = new Date();
+    await prisma.supportTicket.update({ where: { id: ticket.id }, data: { adminLastReadAt: readAt } });
+
+    res.json({ success: true, data: { ...ticket, adminLastReadAt: readAt, unread: 0 } });
   }),
 
   adminStatus: asyncHandler(async (req, res) => {

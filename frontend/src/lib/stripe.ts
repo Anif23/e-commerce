@@ -24,7 +24,7 @@ export interface StripeInstance {
   ) => Promise<{ paymentIntent?: { id: string; status?: string }; error?: { message?: string } }>;
 }
 
-type StripeFactory = (key: string) => StripeInstance;
+type StripeFactory = (key: string, options?: { advancedFraudSignals?: boolean }) => StripeInstance;
 
 const SCRIPT_URL = 'https://js.stripe.com/v3/';
 let promise: Promise<StripeFactory> | null = null;

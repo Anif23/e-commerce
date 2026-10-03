@@ -6,6 +6,7 @@ import { queryKeys } from '../../lib/queryKeys';
 import { getErrorMessage } from '../../lib/api/client';
 import type {
   AdminCustomer,
+  AdminPayment,
   Announcement,
   ApiList,
   Category,
@@ -15,6 +16,7 @@ import type {
   Notification,
   Order,
   OrderStatus,
+  PaymentStats,
   PaymentStatus,
   Product,
   ProductReview,
@@ -47,6 +49,22 @@ export const useInventoryReport = () =>
   useQuery({
     queryKey: queryKeys.admin.inventoryReport,
     queryFn: async () => (await adminApi.inventoryReport()).data.data,
+  });
+
+/* -------------------------------- payments ------------------------------- */
+
+export const useAdminPayments = (params: Query = {}) =>
+  useQuery<ApiList<AdminPayment>>({
+    queryKey: queryKeys.admin.payments(params),
+    queryFn: async () => (await adminApi.payments(params)).data,
+    placeholderData: keepPreviousData,
+  });
+
+export const useAdminPaymentStats = (params: Query = {}) =>
+  useQuery<PaymentStats>({
+    queryKey: queryKeys.admin.paymentStats(params),
+    queryFn: async () => (await adminApi.paymentStats(params)).data.data,
+    placeholderData: keepPreviousData,
   });
 
 /* -------------------------------- products -------------------------------- */
@@ -435,6 +453,14 @@ export const useAdminSupport = (params: Query = {}) =>
     queryFn: async () => (await adminApi.support(params)).data,
   });
 
+/** Count of tickets awaiting an admin reply — drives the Support nav badge. */
+export const useAdminSupportUnread = () =>
+  useQuery({
+    queryKey: queryKeys.admin.supportUnread,
+    queryFn: async () => (await adminApi.supportUnread()).data.data.unread,
+    staleTime: 10_000,
+  });
+
 export const useAdminSupportTicket = (id?: number) =>
   useQuery({
     queryKey: queryKeys.admin.supportTicket(id ?? 0),
@@ -449,6 +475,7 @@ export const useAdminSupportMutations = () => {
     mutationFn: ({ id, message }: { id: number; message: string }) => adminApi.replySupport(id, message),
     onSuccess: () => {
       invalidate(queryKeys.admin.support({}));
+      invalidate(queryKeys.admin.supportUnread);
       toast.success('Reply sent');
     },
     onError: (error) => toast.error(getErrorMessage(error, 'Could not send that reply')),
@@ -458,6 +485,7 @@ export const useAdminSupportMutations = () => {
     mutationFn: ({ id, status }: { id: number; status: string }) => adminApi.updateSupportStatus(id, status),
     onSuccess: () => {
       invalidate(queryKeys.admin.support({}));
+      invalidate(queryKeys.admin.supportUnread);
       toast.success('Ticket updated');
     },
   });

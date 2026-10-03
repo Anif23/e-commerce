@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 
 import { prisma } from '../../lib/prisma.js';
 import { ApiError, asyncHandler } from '../../lib/errors.js';
-import { cookieOptions, env } from '../../config/env.js';
+import { env } from '../../config/env.js';
 import { createAdminNotification } from '../../services/notifications.js';
 import { loginSchema, registerSchema } from './auth.validation.js';
 
@@ -36,8 +36,34 @@ const issueRefreshToken = async (user) => {
   return token;
 };
 
-const setRefreshCookie = (res, token) => {
-  res.cookie('refreshToken', token, { ...cookieOptions, maxAge: REFRESH_TTL_MS });
+const isSecureRequest = (req) =>
+  Boolean(req?.secure) || req?.get?.('x-forwarded-proto') === 'https' || env.nodeEnv === 'production';
+
+/**
+ * The refresh token lives in an httpOnly cookie. When the store is served over
+ * HTTPS — production or the embedded preview iframe — the cookie must be
+ * `SameSite=None; Secure` or the browser drops it on cross-site XHR, which is
+ * exactly what caused the spurious "logged out" / refresh 401. Over plain HTTP
+ * (local dev) we fall back to `SameSite=Lax`.
+ */
+const refreshCookieOptions = (req) => {
+  const secure = isSecureRequest(req);
+
+  return {
+    httpOnly: true,
+    path: '/',
+    secure,
+    sameSite: secure ? 'none' : 'lax',
+    maxAge: REFRESH_TTL_MS,
+  };
+};
+
+const setRefreshCookie = (res, token, req) => {
+  res.cookie('refreshToken', token, refreshCookieOptions(req));
+};
+
+const clearRefreshCookie = (res, req) => {
+  res.clearCookie('refreshToken', refreshCookieOptions(req));
 };
 
 export const authController = {
@@ -60,7 +86,7 @@ export const authController = {
     });
 
     const refreshToken = await issueRefreshToken(user);
-    setRefreshCookie(res, refreshToken);
+    setRefreshCookie(res, refreshToken, req);
 
     await createAdminNotification({
       title: 'New customer',
@@ -91,7 +117,7 @@ export const authController = {
     if (user.isBlocked) throw ApiError.forbidden('Your account has been suspended');
 
     const refreshToken = await issueRefreshToken(user);
-    setRefreshCookie(res, refreshToken);
+    setRefreshCookie(res, refreshToken, req);
 
     res.json({
       success: true,
@@ -108,26 +134,26 @@ export const authController = {
     try {
       payload = jwt.verify(token, env.refreshSecret);
     } catch {
-      res.clearCookie('refreshToken', cookieOptions);
+      clearRefreshCookie(res, req);
       await prisma.refreshToken.deleteMany({ where: { token } }).catch(() => {});
       throw ApiError.unauthorized('Refresh token expired or invalid');
     }
 
     const stored = await prisma.refreshToken.findUnique({ where: { token } });
     if (!stored) {
-      res.clearCookie('refreshToken', cookieOptions);
+      clearRefreshCookie(res, req);
       throw ApiError.unauthorized('Refresh token revoked');
     }
     if (stored.expiresAt <= new Date()) {
       await prisma.refreshToken.deleteMany({ where: { token } });
-      res.clearCookie('refreshToken', cookieOptions);
+      clearRefreshCookie(res, req);
       throw ApiError.unauthorized('Refresh token expired');
     }
 
     const user = await prisma.user.findUnique({ where: { id: payload.id } });
     if (!user || user.isBlocked) {
       await prisma.refreshToken.deleteMany({ where: { token } });
-      res.clearCookie('refreshToken', cookieOptions);
+      clearRefreshCookie(res, req);
       throw ApiError.unauthorized('Account is no longer active');
     }
 
@@ -135,7 +161,7 @@ export const authController = {
     await prisma.refreshToken.delete({ where: { token } });
 
     const refreshToken = await issueRefreshToken(user);
-    setRefreshCookie(res, refreshToken);
+    setRefreshCookie(res, refreshToken, req);
 
     res.json({
       success: true,
@@ -150,7 +176,7 @@ export const authController = {
       await prisma.refreshToken.deleteMany({ where: { token } });
     }
 
-    res.clearCookie('refreshToken', cookieOptions);
+    clearRefreshCookie(res, req);
     res.json({ success: true, message: 'Logged out' });
   }),
 

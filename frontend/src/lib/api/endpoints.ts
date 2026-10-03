@@ -2,6 +2,7 @@ import { api } from './client';
 import type {
   Address,
   AdminCustomer,
+  AdminPayment,
   Announcement,
   ApiItem,
   ApiList,
@@ -19,6 +20,7 @@ import type {
   PaymentMethod,
   PaymentProvider,
   PaymentStatus,
+  PaymentStats,
   Product,
   ProductFilters,
   StoreSettings,
@@ -207,6 +209,11 @@ export const adminApi = {
     api.get<ApiItem<{ valuation: number; outOfStock: number; lowStock: number; products: InventoryRow[] }>>(
       '/admin/reports/inventory',
     ),
+  /** Streams a downloadable sales report (csv|pdf) for a preset range or from/to window. */
+  exportReport: (params: Query) => api.get<Blob>('/admin/reports/export', { params: qs(params), responseType: 'blob' }),
+
+  payments: (params: Query = {}) => api.get<ApiList<AdminPayment>>('/admin/payments', { params: qs(params) }),
+  paymentStats: (params: Query = {}) => api.get<ApiItem<PaymentStats>>('/admin/payments/stats', { params: qs(params) }),
 
   products: (params: Query = {}) => api.get<ApiList<Product>>('/admin/products', { params: qs(params) }),
   product: (id: number) => api.get<ApiItem<Product>>(`/admin/products/${id}`),
@@ -265,6 +272,7 @@ export const adminApi = {
   deleteReview: (id: number) => api.delete(`/admin/reviews/${id}`),
 
   support: (params: Query = {}) => api.get<ApiList<SupportTicket>>('/admin/support', { params: qs(params) }),
+  supportUnread: () => api.get<ApiItem<{ unread: number }>>('/admin/support/unread'),
   supportTicket: (id: number) => api.get<ApiItem<SupportTicket>>(`/admin/support/${id}`),
   replySupport: (id: number, message: string) => api.post<ApiItem<SupportTicket>>(`/admin/support/${id}/messages`, { message }),
   updateSupportStatus: (id: number, status: string) => api.patch(`/admin/support/${id}/status`, { status }),

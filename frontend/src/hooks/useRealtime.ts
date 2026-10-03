@@ -43,6 +43,8 @@ export const useRealtime = () => {
       queryClient.invalidateQueries({ queryKey: ['support-ticket'] });
       queryClient.invalidateQueries({ queryKey: ['support-tickets'] });
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.support({}) });
+      // Keep the Support nav badge in sync the moment a customer replies.
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.supportUnread });
     };
 
     const onConnectError = async (error: Error) => {
